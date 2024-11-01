@@ -7,6 +7,8 @@
 #include "threads/io.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "threads/malloc.h"
+#include "list.h"
 
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -29,6 +31,18 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 
+
+/* for alarm clock */
+// thread list for sleep, sorted by wakeup time
+static struct list sleep_thread_list;
+// compare function for sleep_thread_list
+bool sorted_wakeup_time(const struct list_elem *a, const struct list_elem *b, void *aux) {
+	struct thread *info_a = list_entry(a, struct thread, elem);
+	struct thread *info_b = list_entry(b, struct thread, elem);
+	return info_a->wakeup_time <= info_b->wakeup_time;
+}
+
+
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
    corresponding interrupt. */
@@ -43,6 +57,9 @@ timer_init (void) {
 	outb (0x40, count >> 8);
 
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+	// init sleep thread list
+	list_init(&sleep_thread_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -91,10 +108,22 @@ timer_elapsed (int64_t then) {
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
+	int64_t end = start + ticks;
 
 	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+
+	// element for sleep sleep_thread_list
+	struct thread *t = thread_current();
+	t->wakeup_time = end;
+	// printf("🛞 tid: %ld, current time: %ld, wakeup time: %ld\n", t->tid, start, end);
+
+	// insert sleep information in sleep_thread_list
+	// list is sorted by wakeup_time
+	list_insert_ordered(&sleep_thread_list, &(t->elem), sorted_wakeup_time, NULL);
+
+	intr_set_level(INTR_OFF);
+	thread_block();
+	intr_set_level(INTR_ON);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -126,6 +155,19 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+
+	// wake up sleep thread
+	struct list_elem *le;
+	for(le = list_begin(&sleep_thread_list); le != list_end(&sleep_thread_list);) {
+		struct thread *si = list_entry(le, struct thread, elem);
+		if(si->wakeup_time <= ticks) {
+			// printf("🛟 tid: %ld, wakeup time: %ld\n", si->tid, si->wakeup_time);
+			le = list_remove(le);
+			thread_unblock(si);
+		}
+		else
+			break;
+	}
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
