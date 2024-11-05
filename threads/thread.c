@@ -73,6 +73,9 @@ static tid_t allocate_tid (void);
  * somewhere in the middle, this locates the curent thread. */
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))
 
+/* for mlfqs */
+static int load_avg;  // system load average, fixed-point number
+
 
 // Global descriptor table for the thread_start.
 // Because the gdt will be setup after the thread_init, we should
@@ -323,10 +326,29 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	int old_priority = thread_current()->priority;
-	thread_current ()->priority = new_priority;
-	// printf("🛞  old_priority: %d, new_priority: %d\n", old_priority, new_priority);
-	// printf("first thread priority in ready list %d\n", list_entry(list_begin(&ready_list), struct thread, elem)->priority);
+	
+	struct thread *curr = thread_current();
+	
+	if(curr->base_priority == -1)
+		curr->priority = new_priority;
+	else
+		curr->base_priority = new_priority;
+
+	// priority donate
+	if(!list_empty(&curr->lock_list)) {
+		struct list_elem *e;
+		for(e = list_begin(&curr->lock_list); e != list_end(&curr->lock_list); e = list_next(e)) {
+			struct lock *l = list_entry(e, struct lock, elem);
+			list_sort(&l->semaphore.waiters, thread_priority_compare, NULL);
+			struct thread *donor = list_entry(list_begin(&l->semaphore.waiters), struct thread, elem);
+			if(donor->priority > curr->priority) {
+				if(curr->base_priority == -1)
+					curr->base_priority = curr->priority;
+				curr->priority = donor->priority;
+			}
+		}
+	}
+
    	thread_yield();
 }
 

@@ -213,10 +213,8 @@ lock_acquire (struct lock *lock) {
 				if(temp->priority < curr->priority)
 					temp->priority = curr->priority;
 
-				if(temp->waiting_lock == NULL) {
-					ASSERT(temp->status == THREAD_READY);
+				if(temp->waiting_lock == NULL)
 					break;
-				}
 
 				temp = temp->waiting_lock->holder;
 			}
