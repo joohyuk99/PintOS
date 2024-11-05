@@ -333,11 +333,7 @@ thread_set_priority (int new_priority) {
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) {
-	struct thread *curr = thread_current();
-	if(curr->base_priority == -1)
-		return curr->priority;
-	else
-		return curr->base_priority;
+	return thread_current()->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -431,6 +427,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->magic = THREAD_MAGIC;
 	t->base_priority = -1;
 	t->waiting_lock = NULL;
+	list_init(&t->lock_list);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
