@@ -155,13 +155,12 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
-
+// printf("🛟   current thread priority: %d\n", thread_current()->priority);
 	// wake up sleep thread
 	struct list_elem *le;
 	for(le = list_begin(&sleep_thread_list); le != list_end(&sleep_thread_list);) {
 		struct thread *si = list_entry(le, struct thread, elem);
 		if(si->wakeup_time <= ticks) {
-			// printf("🛟 tid: %ld, wakeup time: %ld\n", si->tid, si->wakeup_time);
 			le = list_remove(le);
 			thread_unblock(si);
 		}
