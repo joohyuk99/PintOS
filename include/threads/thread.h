@@ -91,6 +91,8 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int base_priority;                  // priority before priority donation, default -1
+	struct lock *waiting_lock;          // lock that thread is waiting
 
 	int64_t wakeup_time;                // sleep thread wakeup time
 

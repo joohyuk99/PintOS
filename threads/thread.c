@@ -326,13 +326,18 @@ thread_set_priority (int new_priority) {
 	int old_priority = thread_current()->priority;
 	thread_current ()->priority = new_priority;
 	// printf("🛞  old_priority: %d, new_priority: %d\n", old_priority, new_priority);
+	// printf("first thread priority in ready list %d\n", list_entry(list_begin(&ready_list), struct thread, elem)->priority);
    	thread_yield();
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) {
-	return thread_current ()->priority;
+	struct thread *curr = thread_current();
+	if(curr->base_priority == -1)
+		return curr->priority;
+	else
+		return curr->base_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -424,6 +429,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	t->base_priority = -1;
+	t->waiting_lock = NULL;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
