@@ -98,7 +98,10 @@ struct thread {
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
-	struct list_elem all_list_elem      // for all list
+	struct list_elem all_list_elem;     // for all list
+
+	int nice;
+	int recent_cpu;
 
 	// list of lock for priority donation
 	struct list lock_list;

@@ -168,14 +168,15 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 			break;
 	}
 
+	thread_current()->recent_cpu = FP_ADD_INT(thread_current()->recent_cpu, 1);
 	// Every 1 second (TIMER_FREQ ticks)
-	if(thread_mlfqs && ticks % TIMER_FREQ == 0) {
+	if(thread_mlfqs && timer_ticks() % TIMER_FREQ == 0) {
 		update_load_avg();
 		update_recent_cpu();
 	}
 
 	// Every 4 ticks (time slice)
-	if(thread_mlfqs && ticks % 4 == 0) {
+	if(thread_mlfqs && timer_ticks() % 4 == 0) {
 		update_priorities();
 	}
 }

@@ -218,8 +218,6 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-	list_push_back(&all_list, t->all_list_elem);
-
 	/* Add to run queue. */
 	thread_unblock (t);
 	thread_yield();
@@ -367,26 +365,28 @@ thread_get_priority (void) {
 void
 thread_set_nice (int nice UNUSED) {
 	/* TODO: Your implementation goes here */
+	thread_current()->nice = nice;
+	update_priority(thread_current());
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) {
 	/* TODO: Your implementation goes here */
-	return 0;
+	return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) {
-	return FP_TO_INT(load_avg * 100);
+	return FP_TO_INT(FP_MUL_INT(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) {
 	/* TODO: Your implementation goes here */
-	return 0;
+	return FP_TO_INT(FP_MUL_INT(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -453,7 +453,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->magic = THREAD_MAGIC;
 	t->base_priority = -1;
 	t->waiting_lock = NULL;
+	t->nice = 0;
+	t->recent_cpu = 0;
 	list_init(&t->lock_list);
+	list_push_front(&all_list, &t->all_list_elem);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -577,6 +580,7 @@ do_schedule(int status) {
 	while (!list_empty (&destruction_req)) {
 		struct thread *victim =
 			list_entry (list_pop_front (&destruction_req), struct thread, elem);
+		list_remove(&victim->all_list_elem);
 		palloc_free_page(victim);
 	}
 	thread_current ()->status = status;
@@ -641,21 +645,52 @@ void update_load_avg() {
 	if(thread_current() != idle_thread)
 		ready_threads++;
 	
-	static int coef_59_60 = FP_DIV_INT(INT_TO_FP(59), 60); // 59/60
-    static int coef_1_60 = FP_DIV_INT(INT_TO_FP(1), 60);   // 1/60
+	// int coef_59_60 = FP_DIV_INT(INT_TO_FP(59), 60); // 59/60
+    // int coef_1_60 = FP_DIV_INT(INT_TO_FP(1), 60);   // 1/60
 
-	load_avg = FP_ADD(FP_MUL(coef_59_60, load_avg), FP_MUL_INT(coef_1_60, ready_threads));
+	load_avg = FP_ADD(FP_DIV_INT(FP_MUL_INT(load_avg, 59), 60), FP_DIV_INT(INT_TO_FP(ready_threads), 60));
 	// printf("🛞  load_avg: %d, ready_threads: %d, 59/60: %d, 1/60: %d\n", load_avg, ready_threads, coef_59_60, coef_1_60);
 }
 
 void update_recent_cpu() {
+	struct list_elem *e;
+	int coef = FP_DIV(FP_MUL_INT(load_avg, 2), FP_ADD_INT(FP_MUL_INT(load_avg, 2), 1));
+// printf("update_recent_cpu\n");
 
+	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+// printf("in for loop\n");
+		struct thread *t = list_entry(e, struct thread, all_list_elem);
+		if(t != idle_thread) {
+			t->recent_cpu = FP_ADD_INT(FP_MUL(coef, t->recent_cpu), t->nice);
+			// printf("recent_cpu: %d, nice: %d\n", t->recent_cpu, t->nice);
+		}
+	}
 }
 
 void update_priorities() {
-
+	struct list_elem *e;
+	for(e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+		struct thread *t = list_entry(e, struct thread, all_list_elem);
+		update_priority(t);
+	}
+	// enum intr_level old_level = intr_disable ();
+	// thread_yield();
+	// intr_set_level (old_level);	
 }
 
 void update_priority(struct thread *t) {
+	if(t == idle_thread)
+		return;
+	
+	int new_priority = PRI_MAX - FP_TO_INT(FP_DIV_INT(t->recent_cpu, 4)) - (t->nice * 2);
 
+	if(new_priority > PRI_MAX)
+		new_priority = PRI_MAX;
+	else if(new_priority < PRI_MIN)
+		new_priority = PRI_MIN;
+	
+	t->priority = new_priority;
+
+	// if(t == thread_current())
+	// 	thread_yield();
 }
