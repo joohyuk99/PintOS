@@ -155,7 +155,7 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
-// printf("🛟   current thread priority: %d\n", thread_current()->priority);
+
 	// wake up sleep thread
 	struct list_elem *le;
 	for(le = list_begin(&sleep_thread_list); le != list_end(&sleep_thread_list);) {
@@ -166,6 +166,17 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 		}
 		else
 			break;
+	}
+
+	// Every 1 second (TIMER_FREQ ticks)
+	if(thread_mlfqs && ticks % TIMER_FREQ == 0) {
+		update_load_avg();
+		update_recent_cpu();
+	}
+
+	// Every 4 ticks (time slice)
+	if(thread_mlfqs && ticks % 4 == 0) {
+		update_priorities();
 	}
 }
 

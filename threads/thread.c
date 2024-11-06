@@ -28,6 +28,8 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+static struct list all_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -54,6 +56,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+/* for mlfqs */
+static int load_avg;    // system load average, fixed-point number
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -72,9 +77,6 @@ static tid_t allocate_tid (void);
  * always at the beginning of a page and the stack pointer is
  * somewhere in the middle, this locates the curent thread. */
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))
-
-/* for mlfqs */
-static int load_avg;  // system load average, fixed-point number
 
 
 // Global descriptor table for the thread_start.
@@ -119,6 +121,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&all_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -214,6 +217,8 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+
+	list_push_back(&all_list, t->all_list_elem);
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -374,8 +379,7 @@ thread_get_nice (void) {
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) {
-	/* TODO: Your implementation goes here */
-	return 0;
+	return FP_TO_INT(load_avg * 100);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -628,4 +632,30 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+/* for mlfqs */
+void update_load_avg() {
+
+	int ready_threads = list_size(&ready_list);
+	if(thread_current() != idle_thread)
+		ready_threads++;
+	
+	static int coef_59_60 = FP_DIV_INT(INT_TO_FP(59), 60); // 59/60
+    static int coef_1_60 = FP_DIV_INT(INT_TO_FP(1), 60);   // 1/60
+
+	load_avg = FP_ADD(FP_MUL(coef_59_60, load_avg), FP_MUL_INT(coef_1_60, ready_threads));
+	// printf("🛞  load_avg: %d, ready_threads: %d, 59/60: %d, 1/60: %d\n", load_avg, ready_threads, coef_59_60, coef_1_60);
+}
+
+void update_recent_cpu() {
+
+}
+
+void update_priorities() {
+
+}
+
+void update_priority(struct thread *t) {
+
 }

@@ -98,6 +98,7 @@ struct thread {
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	struct list_elem all_list_elem      // for all list
 
 	// list of lock for priority donation
 	struct list lock_list;
@@ -149,5 +150,29 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+// for mlfqs
+void update_load_avg();
+void update_recent_cpu();
+void update_priority(struct thread *t);
+void update_priorities();
+
+// Fixed-Point Arithmetic Macro
+#define F (1 << 14)
+
+#define INT_TO_FP(n) (int)((n) * F)
+#define FP_TO_INT(x) ((x) >= 0 ? ((x) + F / 2) / F : ((x) - F / 2) / F)  // FP -> integer
+
+#define FP_ADD(x, y) ((x) + (y))
+#define FP_SUB(x, y) ((x) - (y))
+
+#define FP_ADD_INT(x, n) ((x) + ((n) * F))
+#define FP_SUB_INT(x, n) ((x) - ((n) * F))
+
+#define FP_MUL(x, y) (((int64_t)(x)) * (y) / F)
+#define FP_DIV(x, y) (((int64_t)(x)) * F / (y))
+
+#define FP_MUL_INT(x, n) ((x) * (n))
+#define FP_DIV_INT(x, n) ((x) / (n))
 
 #endif /* threads/thread.h */
