@@ -86,6 +86,7 @@ typedef int tid_t;
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
 struct thread {
+	int64_t wakeup_time;
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
@@ -93,7 +94,7 @@ struct thread {
 	int priority;                       /* Priority. */
 
 	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* List element. */
+	struct list_elem elem;              /* List element. - 리스트 요소 구조체를 만듦으로써 리스트를 사용하기 위함 */
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -120,7 +121,7 @@ void thread_start (void);
 void thread_tick (void);
 void thread_print_stats (void);
 
-typedef void thread_func (void *aux);
+typedef void thread_func (void *aux); // 함수 포인터 타입 정의 - 쓰레드가 실행할 함수의 형태
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
@@ -142,5 +143,9 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void thread_sleep (int64_t ticks);
+void thread_wakeup (int64_t ticks);
+bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 #endif /* threads/thread.h */
