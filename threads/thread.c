@@ -684,35 +684,19 @@ void thread_wakeup(int64_t ticks) {
 
     // printf("🔍 thread_wakeup 호출됨, sleep_list 크기: %zu\n", list_size(&sleep_list));
 
-    // struct thread *t;
+    struct thread *t;
 
-    // while (!list_empty(&sleep_list)) {
-    //     t = list_entry(list_pop_front(&sleep_list), struct thread, elem);
-    //     ASSERT (is_thread(t));
+    while (!list_empty(&sleep_list)) {
+		// sleep_list의 첫 번째 스레드를 가져옴
+        t = list_entry(list_pop_front(&sleep_list), struct thread, elem);
 
-    //     printf("🔍 스레드 %s의 wakeup_time: %lld, 현재 ticks: %lld\n", t->name, t->wakeup_time, ticks);
-
-    //     if (t->wakeup_time <= ticks) {
-    //         printf("⏰ 스레드 %s가 깨어남\n", t->name);
-    //         thread_unblock(t);
-    //     } else {
-    //         printf("💤 스레드 %s가 다시 sleep_list에 추가됨\n", t->name);
-	// 		list_insert_ordered(&sleep_list, &t->elem, wakeup_time_less, NULL);
-	// 		break;
-    //     }
-    // }
-
-	struct list_elem *e;
-	e = list_begin(&sleep_list);
-	while (e != list_end(&sleep_list)) {
-		struct thread *t = list_entry(e, struct thread, elem);
-		if (t->wakeup_time <= ticks) {
-			e = list_remove(e);
-			thread_unblock(t);
-		} else {
-			e = list_next(e);
-		}
-	}
+        if (t->wakeup_time <= ticks) { // 깰 시간이 되면
+            thread_unblock(t); // 스레드를 깨워서 ready_list에 추가
+        } else { // 아직 깰 시간이 안 됐으면
+			list_push_back(&sleep_list, &t->elem); // 다시 sleep_list에 추가
+			break; // 다시 sleep_list에 추가 해서 sleep_list가 비어있지 않게 되기 때문에 while문의 조건을 계속 충족하여 무한 루프에 빠짐 => break를 걸어서 빠져나와야 함
+        }
+    }
 
     intr_set_level(old_level);
 }
