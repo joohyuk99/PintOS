@@ -94,7 +94,7 @@ int64_t timer_elapsed (int64_t then) {
    여기서는 busy-waiting 방식을 사용하여 CPU를 점유한 상태로 대기합니다.
 */
 void timer_sleep (int64_t ticks) {
-   // printf ("📌 timer_sleep 호출\n");
+   // printf ("1️⃣ timer_sleep %d ticks 실행\n", ticks);
    ASSERT (intr_get_level () == INTR_ON);  // 인터럽트가 활성화되어 있어야 함
 
    int64_t start = timer_ticks ();  // 시작 시점의 타이머 틱 수를 저장
@@ -120,7 +120,7 @@ void timer_nsleep (int64_t ns) {
 void timer_print_stats (void) {
    printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* 타이머 인터럽트 핸들러.
    타이머가 틱할 때마다 호출되며, 틱 수를 증가시키고 thread_tick()을 호출 */
 static void timer_interrupt (struct intr_frame *args UNUSED) {

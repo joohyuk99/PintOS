@@ -198,9 +198,16 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF; // 인터럽트 플래그
 
 	/* 실행 큐에 추가 */
-	// printf("🔮 니 누기야????????%s\n", t->name);
+	// printf("🔮 thread_create: 니 누기야???????? %s\n", t->name);
 	// printf("🚫 thread_create에서 thread_unblock 호출\n");
 	thread_unblock (t);
+	
+	/*
+	 * 스레드가 새로 생성되어 우선 순위가 변동이 있을 수 있기 때문에 
+	 * 현재 실행 중인 스레드와 ready_list의 front를 비교 하는 함수 호출
+	 */ 
+	// printf("1️⃣ thread_create 실행: thread_compare_priority() 호출\n");
+	thread_compare_priority();
 
 	return tid;
 }
@@ -231,7 +238,8 @@ void thread_unblock (struct thread *t) {
     old_level = intr_disable (); // 인터럽트 비활성화
     ASSERT (t->status == THREAD_BLOCKED); // 스레드 상태가 BLOCKED인지 확인
 
-    list_push_back (&ready_list, &t->elem); // ready_list에 스레드 추가
+    list_insert_ordered(&ready_list, &t->elem, priority_higher, NULL); // ready_list에 스레드 추가
+	// printf("✅ [%s] thread_unblock: ready_list 크기: %lld\n", t->name, list_size(&ready_list));
     t->status = THREAD_READY; // 스레드 상태를 READY로 변경
 
     intr_set_level (old_level); // 이전 인터럽트 레벨 복원
@@ -289,13 +297,14 @@ thread_exit (void) {
 void
 thread_yield (void) {
 	struct thread *curr = thread_current ();
+	// printf("🔄 thread_yield %s가 실행됨\n", curr->name);
 	enum intr_level old_level;
 
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr->elem, priority_higher, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -304,6 +313,8 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	// printf("1️⃣ thread_set_priority 실행: thread_compare_priority() 호출\n");
+	thread_compare_priority();
 }
 
 /* 현재 스레드의 우선 순위를 반환합니다. */
@@ -397,8 +408,10 @@ init_thread (struct thread *t, const char *name, int priority) {
    실행 큐가 비어 있다면 idle_thread를 반환합니다. */
 static struct thread *
 next_thread_to_run (void) {
-	if (list_empty (&ready_list))
+	if (list_empty (&ready_list)) {
+		// printf("🔍 next_thread_to_run: idle_thread 반환\n");
 		return idle_thread;
+	}
 	else
 		return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
@@ -654,12 +667,15 @@ allocate_tid (void) {
 	return tid;
 }
 
+/* alarm-clock 구현 */
+
 /* 스레드 sleep_list에 추가 */
 void thread_sleep (int64_t ticks) {
 	struct thread *curr;
 
 	enum intr_level old_level = intr_disable();   // 인터럽트 비활성화
 	curr = thread_current();
+	// printf ("2️⃣ [%s] thread_sleep %d ticks 실행\n", curr->name, ticks);
 
 	ASSERT (curr != idle_thread); // idle 쓰레드는 sleep 할 수 없음
 
@@ -673,7 +689,7 @@ void thread_sleep (int64_t ticks) {
 	intr_set_level(old_level); // 인터럽트 복원
 }
 
-bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
+bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
 	struct thread *t1 = list_entry(a, struct thread, elem);
 	struct thread *t2 = list_entry(b, struct thread, elem);
 	return t1->wakeup_time < t2->wakeup_time;
@@ -682,21 +698,45 @@ bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void
 void thread_wakeup(int64_t ticks) {
     enum intr_level old_level = intr_disable();
 
-    // printf("🔍 thread_wakeup 호출됨, sleep_list 크기: %zu\n", list_size(&sleep_list));
-
     struct thread *t;
 
     while (!list_empty(&sleep_list)) {
 		// sleep_list의 첫 번째 스레드를 가져옴
         t = list_entry(list_pop_front(&sleep_list), struct thread, elem);
+		// printf ("⏰ [%s] thread_wakeup %d ticks 실행\n", t->name, ticks);
 
         if (t->wakeup_time <= ticks) { // 깰 시간이 되면
+			// printf ("⏰ [%s] 일어남 ticks: %d\n", t->name, ticks);
             thread_unblock(t); // 스레드를 깨워서 ready_list에 추가
         } else { // 아직 깰 시간이 안 됐으면
-			list_push_back(&sleep_list, &t->elem); // 다시 sleep_list에 추가
+			// printf ("💤 [%s] 다시 잠 ticks: %d\n", t->name, ticks);
+			list_insert_ordered(&sleep_list, &t->elem, wakeup_time_less, NULL);
 			break; // 다시 sleep_list에 추가 해서 sleep_list가 비어있지 않게 되기 때문에 while문의 조건을 계속 충족하여 무한 루프에 빠짐 => break를 걸어서 빠져나와야 함
         }
     }
 
     intr_set_level(old_level);
+}
+
+/* priority 구현 */
+void thread_compare_priority(void) {
+	enum intr_level old_level = intr_disable();
+
+	if (!list_empty(&ready_list)) {
+		struct thread *curr = thread_current();
+		struct thread *tmp = list_entry(list_front(&ready_list), struct thread, elem);
+	
+		if (curr->priority < tmp->priority) {
+			// printf("2️⃣ thread_compare_priority 실행: thread_yield() 호출\n");
+			thread_yield();
+		}
+	}
+
+	intr_set_level(old_level);
+}
+
+bool priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+	struct thread *t1 = list_entry(a, struct thread, elem);
+	struct thread *t2 = list_entry(b, struct thread, elem);
+	return t1->priority > t2->priority;
 }
