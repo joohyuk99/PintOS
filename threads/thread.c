@@ -152,7 +152,6 @@ thread_tick (void) {
 	if (++thread_ticks >= TIME_SLICE) {
 		// intr_yield_on_return 함수는 직접적으로 CPU 자원은 다른 스레드에게 할당 X
 		// 다음 시점에서 스케줄링이 이뤄지도록 요청 (현재 인터럽트 핸들러 종료 후 양보될 것 표시)
-		// printf ("⏱️ thread_tick: %d\n", thread_ticks);
 		intr_yield_on_return ();
 	}
 }
@@ -199,14 +198,12 @@ thread_create (const char *name, int priority,
 
 	/* 실행 큐에 추가 */
 	// printf("🔮 thread_create: 니 누기야???????? %s\n", t->name);
-	// printf("🚫 thread_create에서 thread_unblock 호출\n");
 	thread_unblock (t);
 	
 	/*
 	 * 스레드가 새로 생성되어 우선 순위가 변동이 있을 수 있기 때문에 
 	 * 현재 실행 중인 스레드와 ready_list의 front를 비교 하는 함수 호출
 	 */ 
-	// printf("1️⃣ thread_create 실행: thread_compare_priority() 호출\n");
 	thread_compare_priority();
 
 	return tid;
@@ -313,7 +310,6 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
-	// printf("1️⃣ thread_set_priority 실행: thread_compare_priority() 호출\n");
 	thread_compare_priority();
 }
 
@@ -409,7 +405,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 static struct thread *
 next_thread_to_run (void) {
 	if (list_empty (&ready_list)) {
-		// printf("🔍 next_thread_to_run: idle_thread 반환\n");
 		return idle_thread;
 	}
 	else
@@ -675,7 +670,6 @@ void thread_sleep (int64_t ticks) {
 
 	enum intr_level old_level = intr_disable();   // 인터럽트 비활성화
 	curr = thread_current();
-	// printf ("2️⃣ [%s] thread_sleep %d ticks 실행\n", curr->name, ticks);
 
 	ASSERT (curr != idle_thread); // idle 쓰레드는 sleep 할 수 없음
 
@@ -683,7 +677,7 @@ void thread_sleep (int64_t ticks) {
 
 	// 적절한 위치에 현재 스레드 삽입
 	list_insert_ordered(&sleep_list, &curr->elem, wakeup_time_less, NULL);
-	// printf("🔍 thread_sleep: sleep_list에 현재 스레드 %s 삽입\n", curr->name);
+	// printf("🛏️ thread_sleep: sleep_list에 현재 스레드 %s 삽입\n", curr->name);
 
 	thread_block();
 	intr_set_level(old_level); // 인터럽트 복원
@@ -703,13 +697,10 @@ void thread_wakeup(int64_t ticks) {
     while (!list_empty(&sleep_list)) {
 		// sleep_list의 첫 번째 스레드를 가져옴
         t = list_entry(list_pop_front(&sleep_list), struct thread, elem);
-		// printf ("⏰ [%s] thread_wakeup %d ticks 실행\n", t->name, ticks);
 
         if (t->wakeup_time <= ticks) { // 깰 시간이 되면
-			// printf ("⏰ [%s] 일어남 ticks: %d\n", t->name, ticks);
             thread_unblock(t); // 스레드를 깨워서 ready_list에 추가
         } else { // 아직 깰 시간이 안 됐으면
-			// printf ("💤 [%s] 다시 잠 ticks: %d\n", t->name, ticks);
 			list_insert_ordered(&sleep_list, &t->elem, wakeup_time_less, NULL);
 			break; // 다시 sleep_list에 추가 해서 sleep_list가 비어있지 않게 되기 때문에 while문의 조건을 계속 충족하여 무한 루프에 빠짐 => break를 걸어서 빠져나와야 함
         }
@@ -725,9 +716,9 @@ void thread_compare_priority(void) {
 	if (!list_empty(&ready_list)) {
 		struct thread *curr = thread_current();
 		struct thread *tmp = list_entry(list_front(&ready_list), struct thread, elem);
-	
-		if (curr->priority < tmp->priority) {
-			// printf("2️⃣ thread_compare_priority 실행: thread_yield() 호출\n");
+
+		// 현재 스레드와 ready_list에 있는 스레드의 우선순위를 비교
+		if (curr->priority < tmp->priority) { // ready_list에 있는 스레드의 우선순위가 더 높으면 yield
 			thread_yield();
 		}
 	}
