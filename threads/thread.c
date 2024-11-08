@@ -235,7 +235,7 @@ void thread_unblock (struct thread *t) {
     old_level = intr_disable (); // 인터럽트 비활성화
     ASSERT (t->status == THREAD_BLOCKED); // 스레드 상태가 BLOCKED인지 확인
 
-    list_insert_ordered(&ready_list, &t->elem, priority_higher, NULL); // ready_list에 스레드 추가
+    list_insert_ordered(&ready_list, &t->elem, thread_priority_higher, NULL); // ready_list에 스레드 추가
 	// printf("✅ [%s] thread_unblock: ready_list 크기: %lld\n", t->name, list_size(&ready_list));
     t->status = THREAD_READY; // 스레드 상태를 READY로 변경
 
@@ -301,7 +301,7 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		list_insert_ordered(&ready_list, &curr->elem, priority_higher, NULL);
+		list_insert_ordered(&ready_list, &curr->elem, thread_priority_higher, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -726,7 +726,7 @@ void thread_compare_priority(void) {
 	intr_set_level(old_level);
 }
 
-bool priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+bool thread_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
 	struct thread *t1 = list_entry(a, struct thread, elem);
 	struct thread *t2 = list_entry(b, struct thread, elem);
 	return t1->priority > t2->priority;

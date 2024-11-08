@@ -4,10 +4,10 @@
 #include <list.h>
 #include <stdbool.h>
 
-/* A counting semaphore. */
+/* 카운팅 세마포어 */
 struct semaphore {
-	unsigned value;             /* Current value. */
-	struct list waiters;        /* List of waiting threads. */
+	unsigned value;             /* 현재 값 */
+	struct list waiters;        /* 대기 중인 스레드 목록 */
 };
 
 void sema_init (struct semaphore *, unsigned value);
@@ -37,6 +37,8 @@ void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
+
+bool sema_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Optimization barrier.
  *
