@@ -28,6 +28,11 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* mlfqs 구현 */
+#define NICE_DEFAULT 0
+#define RECENT_CPU_DEFAULT 0
+#define LOAD_AVG_DEFAULT 0
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -154,6 +159,11 @@ struct thread {
 	struct lock *wait_on_lock; /* 현재 스레드가 얻기 위해 기다리고 있는 lock */
 	struct list donations_list; /* 우선순위를 기부해준 스레드들의 리스트 */
 	struct list_elem donation_elem; /* donaton 리스트를 사용하기 위함 */
+
+	/* mlfqs */
+	int nice;
+	int recent_cpu;
+	struct list_elem all_elem;
 	
 
 #ifdef USERPROG
@@ -197,18 +207,28 @@ void thread_yield (void);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
-int thread_get_nice (void);
-void thread_set_nice (int);
-int thread_get_recent_cpu (void);
-int thread_get_load_avg (void);
-
 void do_iret (struct intr_frame *tf);
 
 void thread_sleep (int64_t ticks);
 void thread_wakeup (int64_t ticks);
 bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 bool thread_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-void thread_compare_priority(void);
+void thread_test_preemption(void);
 bool donation_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+/* mlfqs 구현 */
+void mlfqs_calculate_priority (struct thread *t);
+void mlfqs_calculate_recent_cpu (struct thread *t);
+void mlfqs_calculate_load_avg();
+void mlfqs_increment_recent_cpu(void);
+void mlfqs_recalculate_recent_cpu(void);
+void mlfqs_recalculate_priority(void);
+
+void thread_set_nice(int nice UNUSED);
+int thread_get_nice (void);
+int thread_get_load_avg (void);
+int thread_get_recent_cpu (void);
+
+
 
 #endif /* threads/thread.h */

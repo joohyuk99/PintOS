@@ -116,7 +116,7 @@ sema_up (struct semaphore *sema) {
 					struct thread, elem));
 	}
 	sema->value++;
-	thread_compare_priority();
+	thread_test_preemption();
 	intr_set_level (old_level);
 }
 
@@ -192,6 +192,12 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
+	if (thread_mlfqs) {
+		sema_down(&lock->semaphore);
+		lock->holder = thread_current();
+		return;
+	}
+
 	struct thread *curr = thread_current();
 
 	if (lock->holder != NULL) {
@@ -199,7 +205,8 @@ lock_acquire (struct lock *lock) {
 		list_insert_ordered(&lock->holder->donations_list, &curr->donation_elem, donation_priority_higher, NULL); // lock 소유자 스레드의 donations_list에 현재 스레드를 추가
 		
 		/* 우선 순위 기부 */
-		for (int i = 0; i < 8; i++) {
+		// int donations_size = list_size(&lock->holder->donations_list);
+		for (int i = 0; i <= 8; i++) {
 			if (curr->wait_on_lock == NULL) break;
 			curr->wait_on_lock->holder->priority = curr->priority; // 우선순위를 기부
 			curr = curr->wait_on_lock->holder; // 기부한 스레드로 이동
@@ -239,6 +246,12 @@ void
 lock_release (struct lock *lock) {
     ASSERT (lock != NULL);
     ASSERT (lock_held_by_current_thread (lock));
+
+	if (thread_mlfqs) {
+		lock->holder = NULL;
+		sema_up(&lock->semaphore);
+		return;
+	}
 
     // donations_list에서 현재 lock과 관련된 기부된 우선순위 제거
     struct list_elem *e;

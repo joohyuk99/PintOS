@@ -127,6 +127,17 @@ static void timer_interrupt (struct intr_frame *args UNUSED) {
    ticks++;  // 틱 수 증가
    // printf ("⏱️ timer_interrupt:%d 호출\n", ticks);
    thread_tick ();  // 스레드의 틱 함수 호출
+
+   if (thread_mlfqs) { // mlfqs일 때만 실행
+      mlfqs_increment_recent_cpu();
+      if (ticks % 4 == 0) {
+         mlfqs_recalculate_priority();
+         if (ticks % TIMER_FREQ == 0) {
+            mlfqs_recalculate_recent_cpu();
+            mlfqs_calculate_load_avg();
+         }
+      }
+   }
    thread_wakeup(ticks);  // 일어날 시간이 된 스레드 깨우기
 }
 
