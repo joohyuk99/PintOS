@@ -309,7 +309,9 @@ thread_yield (void) {
 /* 현재 스레드의 우선 순위를 NEW_PRIORITY로 설정합니다. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+	thread_current ()->original_priority = new_priority;
+	
+	refresh_priority();
 	thread_compare_priority();
 }
 
@@ -393,9 +395,18 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->status = THREAD_BLOCKED;
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *); // 스택 포인터
-	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+
+	/* alarm-clock 구현 */
 	t->wakeup_time = 0; // wakeup_time 초기화
+
+	/* priority 구현 */
+	t->priority = priority;
+	
+	/* donation 구현 */
+	t->original_priority = priority;
+	t->wait_on_lock = NULL;
+	list_init(&t->donations_list);
 }
 
 /* 스케줄링할 다음 스레드를 선택하여 반환합니다.
@@ -729,5 +740,12 @@ void thread_compare_priority(void) {
 bool thread_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
 	struct thread *t1 = list_entry(a, struct thread, elem);
 	struct thread *t2 = list_entry(b, struct thread, elem);
+	return t1->priority > t2->priority;
+}
+
+bool donation_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+	struct thread *t1 = list_entry(a, struct thread, donation_elem);
+	struct thread *t2 = list_entry(b, struct thread, donation_elem);
+	// printf("donation_priority_higher 호출\n");
 	return t1->priority > t2->priority;
 }

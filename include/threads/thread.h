@@ -85,6 +85,58 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
+/* 커널 스레드 또는 사용자 프로세스.
+ *
+ * 각 스레드 구조체는 자체 4 kB 페이지에 저장됩니다.
+ * 스레드 구조체 자체는 페이지의 가장 아래쪽(오프셋 0)에 위치합니다.
+ * 페이지의 나머지 부분은 스레드의 커널 스택에 예약되어 있으며,
+ * 이는 페이지의 맨 위(오프셋 4 kB)에서 아래로 성장합니다. 다음은 그 예시입니다:
+ *
+ *      4 kB +---------------------------------+
+ *           |          커널 스택              |
+ *           |                |                |
+ *           |                |                |
+ *           |                V                |
+ *           |         아래로 성장              |
+ *           |                                 |
+ *           |                                 |
+ *           |                                 |
+ *           |                                 |
+ *           |                                 |
+ *           |                                 |
+ *           |                                 |
+ *           |                                 |
+ *           +---------------------------------+
+ *           |              magic              |
+ *           |            intr_frame           |
+ *           |                :                |
+ *           |                :                |
+ *           |               name              |
+ *           |              status             |
+ *      0 kB +---------------------------------+
+ *
+ * 이로 인해 두 가지 중요한 점이 있습니다:
+ *
+ *    1. 첫째, `struct thread'는 너무 커지지 않도록 해야 합니다.
+ *       그렇지 않으면 커널 스택에 충분한 공간이 없게 됩니다.
+ *       기본 `struct thread'는 몇 바이트에 불과합니다.
+ *       이는 1 kB 이하로 유지되어야 합니다.
+ *
+ *    2. 둘째, 커널 스택이 너무 커지지 않도록 해야 합니다.
+ *       스택이 오버플로우되면 스레드 상태가 손상됩니다.
+ *       따라서 커널 함수는 큰 구조체나 배열을 비정적 지역 변수로 할당하지 않아야 합니다.
+ *       대신 malloc() 또는 palloc_get_page()를 사용하여 동적 할당을 해야 합니다.
+ *
+ * 이러한 문제의 첫 번째 증상은 아마도 thread_current()에서의
+ * 어설션 실패일 것입니다. 이는 실행 중인 스레드의 `struct thread'의
+ * `magic' 멤버가 THREAD_MAGIC으로 설정되어 있는지 확인합니다.
+ * 스택 오버플로우는 일반적으로 이 값을 변경하여 어설션을 트리거합니다. */
+/* `elem` 멤버는 두 가지 용도로 사용됩니다. 
+ * 이는 실행 대기열(thread.c)의 요소가 될 수 있으며,
+ * 세마포어 대기 목록(synch.c)의 요소가 될 수도 있습니다.
+ * 이 두 가지 방식으로 사용될 수 있는 이유는 상호 배타적이기 때문입니다:
+ * 준비 상태에 있는 스레드만 실행 대기열에 있으며,
+ * 차단 상태에 있는 스레드만 세마포어 대기 목록에 있습니다. */
 struct thread {
 	int64_t wakeup_time;
 	/* Owned by thread.c. */
@@ -95,6 +147,14 @@ struct thread {
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. - 리스트 요소 구조체를 만듦으로써 리스트를 사용하기 위함 */
+	
+	/* donation 구현 */
+	int original_priority; /* 원래 우선순위 */
+
+	struct lock *wait_on_lock; /* 현재 스레드가 얻기 위해 기다리고 있는 lock */
+	struct list donations_list; /* 우선순위를 기부해준 스레드들의 리스트 */
+	struct list_elem donation_elem; /* donaton 리스트를 사용하기 위함 */
+	
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -147,7 +207,8 @@ void do_iret (struct intr_frame *tf);
 void thread_sleep (int64_t ticks);
 void thread_wakeup (int64_t ticks);
 bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-bool priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+bool thread_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void thread_compare_priority(void);
+bool donation_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 #endif /* threads/thread.h */

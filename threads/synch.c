@@ -192,8 +192,22 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
+	struct thread *curr = thread_current();
+
+	if (lock->holder != NULL) {
+		curr->wait_on_lock = lock; // 현재 스레드가 기다릴 lock을 저장
+		list_insert_ordered(&lock->holder->donations_list, &curr->donation_elem, donation_priority_higher, NULL); // lock 소유자 스레드의 donations_list에 현재 스레드를 추가
+		
+		/* 우선 순위 기부 */
+		for (int i = 0; i < 8; i++) {
+			if (curr->wait_on_lock == NULL) break;
+			curr->wait_on_lock->holder->priority = curr->priority; // 우선순위를 기부
+			curr = curr->wait_on_lock->holder; // 기부한 스레드로 이동
+		}
+	}
 	sema_down (&lock->semaphore);
 	lock->holder = thread_current ();
+	thread_current()->wait_on_lock = NULL;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -223,11 +237,23 @@ lock_try_acquire (struct lock *lock) {
    handler. */
 void
 lock_release (struct lock *lock) {
-	ASSERT (lock != NULL);
-	ASSERT (lock_held_by_current_thread (lock));
+    ASSERT (lock != NULL);
+    ASSERT (lock_held_by_current_thread (lock));
 
-	lock->holder = NULL;
-	sema_up (&lock->semaphore);
+    // donations_list에서 현재 lock과 관련된 기부된 우선순위 제거
+    struct list_elem *e;
+	struct thread *holder = thread_current();
+
+    for (e = list_begin(&holder->donations_list); e != list_end(&holder->donations_list); e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, donation_elem);
+        if (t->wait_on_lock == lock)
+            list_remove(&t->donation_elem);
+    }
+
+	refresh_priority();
+
+    lock->holder = NULL;
+    sema_up (&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -343,4 +369,22 @@ bool sema_priority_higher(const struct list_elem *a, const struct list_elem *b, 
 	struct thread *thread2 = list_entry(list_begin(sema2_waiters), struct thread, elem);
 
 	return thread1->priority > thread2->priority;
+}
+
+/* donation 구현 */
+void refresh_priority(void) {
+	// 현재 실행 중인 스레드가 lock의 소유자
+	struct thread *holder = thread_current();
+	// 일단 원래 우선 순위로 복구
+	holder->priority = holder->original_priority;
+
+    // donations_list에 남아있는 기부된 우선순위가 있으면 가장 높은 우선순위로 설정
+    if (!list_empty(&holder->donations_list)) {
+		list_sort(&holder->donations_list, donation_priority_higher, NULL);
+
+		struct thread *front = list_entry(list_front(&holder->donations_list), struct thread, donation_elem);
+		if (holder->priority < front->priority) {
+			holder->priority = front->priority;
+		}
+	}
 }
