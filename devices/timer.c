@@ -123,22 +123,24 @@ void timer_print_stats (void) {
 
 /* 타이머 인터럽트 핸들러.
    타이머가 틱할 때마다 호출되며, 틱 수를 증가시키고 thread_tick()을 호출 */
-static void timer_interrupt (struct intr_frame *args UNUSED) {
-   ticks++;  // 틱 수 증가
-   // printf ("⏱️ timer_interrupt:%d 호출\n", ticks);
-   thread_tick ();  // 스레드의 틱 함수 호출
+static void
+timer_interrupt (struct intr_frame *args UNUSED)
+{
+  ticks++;
+  thread_tick ();
 
-   if (thread_mlfqs) { // mlfqs일 때만 실행
-      mlfqs_increment_recent_cpu();
-      if (ticks % 4 == 0) {
-         mlfqs_recalculate_priority();
-         if (ticks % TIMER_FREQ == 0) {
-            mlfqs_recalculate_recent_cpu();
-            mlfqs_calculate_load_avg();
-         }
+  if (thread_mlfqs) {
+    mlfqs_increment_recent_cpu ();
+    if (ticks % 4 == 0) {
+      mlfqs_recalculate_priority ();
+      if (ticks % TIMER_FREQ == 0) {
+        mlfqs_recalculate_recent_cpu ();
+        mlfqs_calculate_load_avg ();
       }
-   }
-   thread_wakeup(ticks);  // 일어날 시간이 된 스레드 깨우기
+    }
+  }
+
+  thread_awake (ticks);
 }
 
 /* LOOPS 횟수만큼 반복하는 데 한 타이머 틱 이상 걸리는지 확인 */

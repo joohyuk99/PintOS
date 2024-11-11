@@ -40,7 +40,7 @@ void cond_broadcast (struct condition *, struct lock *);
 
 bool sema_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux);
 void refresh_priority(void);
-
+void remove_with_lock(struct lock *lock);
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an

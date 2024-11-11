@@ -210,7 +210,7 @@ void thread_set_priority (int);
 void do_iret (struct intr_frame *tf);
 
 void thread_sleep (int64_t ticks);
-void thread_wakeup (int64_t ticks);
+void thread_awake (int64_t ticks);
 bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 bool thread_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void thread_test_preemption(void);
@@ -219,12 +219,12 @@ bool donation_priority_higher(const struct list_elem *a, const struct list_elem 
 /* mlfqs 구현 */
 void mlfqs_calculate_priority (struct thread *t);
 void mlfqs_calculate_recent_cpu (struct thread *t);
-void mlfqs_calculate_load_avg();
+void mlfqs_calculate_load_avg(void);
 void mlfqs_increment_recent_cpu(void);
 void mlfqs_recalculate_recent_cpu(void);
 void mlfqs_recalculate_priority(void);
 
-void thread_set_nice(int nice UNUSED);
+void thread_set_nice(int);
 int thread_get_nice (void);
 int thread_get_load_avg (void);
 int thread_get_recent_cpu (void);

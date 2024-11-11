@@ -193,9 +193,9 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!lock_held_by_current_thread (lock));
 
 	if (thread_mlfqs) {
-		sema_down(&lock->semaphore);
-		lock->holder = thread_current();
-		return;
+		sema_down (&lock->semaphore);
+		lock->holder = thread_current ();
+		return ;
 	}
 
 	struct thread *curr = thread_current();
@@ -247,22 +247,14 @@ lock_release (struct lock *lock) {
     ASSERT (lock != NULL);
     ASSERT (lock_held_by_current_thread (lock));
 
+	lock->holder = NULL;
 	if (thread_mlfqs) {
-		lock->holder = NULL;
-		sema_up(&lock->semaphore);
-		return;
+		sema_up (&lock->semaphore);
+		return ;
 	}
 
     // donations_list에서 현재 lock과 관련된 기부된 우선순위 제거
-    struct list_elem *e;
-	struct thread *holder = thread_current();
-
-    for (e = list_begin(&holder->donations_list); e != list_end(&holder->donations_list); e = list_next(e)) {
-        struct thread *t = list_entry(e, struct thread, donation_elem);
-        if (t->wait_on_lock == lock)
-            list_remove(&t->donation_elem);
-    }
-
+    remove_with_lock(lock);
 	refresh_priority();
 
     lock->holder = NULL;
@@ -385,6 +377,19 @@ bool sema_priority_higher(const struct list_elem *a, const struct list_elem *b, 
 }
 
 /* donation 구현 */
+void
+remove_with_lock (struct lock *lock)
+{
+  struct list_elem *e;
+  struct thread *cur = thread_current ();
+
+  for (e = list_begin (&cur->donations_list); e != list_end (&cur->donations_list); e = list_next (e)){
+    struct thread *t = list_entry (e, struct thread, donation_elem);
+    if (t->wait_on_lock == lock)
+      list_remove (&t->donation_elem);
+  }
+}
+
 void refresh_priority(void) {
 	// 현재 실행 중인 스레드가 lock의 소유자
 	struct thread *holder = thread_current();
