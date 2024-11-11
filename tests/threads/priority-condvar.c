@@ -26,28 +26,31 @@ test_priority_condvar (void)
 
   thread_set_priority (PRI_MIN);
   for (i = 0; i < 10; i++) 
-    {
-      int priority = PRI_DEFAULT - (i + 7) % 10 - 1;
-      char name[16];
-      snprintf (name, sizeof name, "priority %d", priority);
-      thread_create (name, priority, priority_condvar_thread, NULL);
-    }
+  {
+    // 23 22 21 30 29 28 27 26 25 24
+    int priority = PRI_DEFAULT - (i + 7) % 10 - 1;
+    char name[16];
+    snprintf (name, sizeof name, "priority %d", priority);
+    thread_create (name, priority, priority_condvar_thread, NULL);
+  }
+
 
   for (i = 0; i < 10; i++) 
-    {
-      lock_acquire (&lock);
-      msg ("Signaling...");
-      cond_signal (&condition, &lock);
-      lock_release (&lock);
-    }
+  {
+    lock_acquire (&lock);
+    msg ("Signaling...");
+    cond_signal (&condition, &lock); // 3. 모든 스레드를 깨움
+    lock_release (&lock);
+  }
 }
 
 static void
 priority_condvar_thread (void *aux UNUSED) 
 {
-  msg ("Thread %s starting.", thread_name ());
+  msg ("Thread %s starting.", thread_name ()); // 1. 각 스레드가 이 메세지를 출력하고
   lock_acquire (&lock);
-  cond_wait (&condition, &lock);
-  msg ("Thread %s woke up.", thread_name ());
+  cond_wait (&condition, &lock); // 2. break point처럼 스레드를 대기 시키는 역할
+  msg ("Thread %s woke up.", thread_name ()); // 4. 각 스레드가 우선순위 순서대로 이 메세지를 출력
   lock_release (&lock);
 }
+

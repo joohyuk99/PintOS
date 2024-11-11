@@ -26,12 +26,15 @@ test_alarm_priority (void)
   
   for (i = 0; i < 10; i++) 
     {
+      // 우선 순위: 25 24 23 22 21 30 29 28 27 26
       int priority = PRI_DEFAULT - (i + 5) % 10 - 1;
+
       char name[16];
       snprintf (name, sizeof name, "priority %d", priority);
       thread_create (name, priority, alarm_priority_thread, NULL);
     }
 
+  // printf("0️⃣ test_alarm_priority 실행: thread_set_priority (PRI_MIN) 호출\n");
   thread_set_priority (PRI_MIN);
 
   for (i = 0; i < 10; i++)

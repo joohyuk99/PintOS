@@ -79,10 +79,10 @@ static struct desc_ptr idt_desc = {
 	}; \
 }
 
-/* Creates an interrupt gate that invokes FUNCTION with the given DPL. */
+/* 인터럽트 게이트를 생성하여 FUNCTION을 호출하고, 주어진 DPL을 사용합니다. */
 #define make_intr_gate(g, function, dpl) make_gate((g), (function), (dpl), 14)
 
-/* Creates a trap gate that invokes FUNCTION with the given DPL. */
+/* 트랩 게이트를 생성하여 FUNCTION을 호출하고, 주어진 DPL을 사용합니다. */
 #define make_trap_gate(g, function, dpl) make_gate((g), (function), (dpl), 15)
 
 
@@ -164,10 +164,10 @@ void
 intr_init (void) {
 	int i;
 
-	/* Initialize interrupt controller. */
+	/* 인터럽트 컨트롤러 초기화 */
 	pic_init ();
 
-	/* Initialize IDT. */
+	/* IDT 초기화 */
 	for (i = 0; i < INTR_CNT; i++) {
 		make_intr_gate(&idt[i], intr_stubs[i], 0);
 		intr_names[i] = "unknown";
@@ -337,7 +337,7 @@ intr_handler (struct intr_frame *frame) {
 	   We only handle one at a time (so interrupts must be off)
 	   and they need to be acknowledged on the PIC (see below).
 	   An external interrupt handler cannot sleep. */
-	external = frame->vec_no >= 0x20 && frame->vec_no < 0x30;
+	external = frame->vec_no >= 0x20 && frame->vec_no < 0x30; // 외부 인터럽트인지 확인
 	if (external) {
 		ASSERT (intr_get_level () == INTR_OFF);
 		ASSERT (!intr_context ());
@@ -369,8 +369,10 @@ intr_handler (struct intr_frame *frame) {
 		in_external_intr = false;
 		pic_end_of_interrupt (frame->vec_no);
 
-		if (yield_on_return)
+		if (yield_on_return) {
+			// printf ("📞 intr_handler에서 thread_yield 호출\n");
 			thread_yield ();
+		}
 	}
 }
 

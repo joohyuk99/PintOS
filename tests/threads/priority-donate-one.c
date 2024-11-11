@@ -47,6 +47,7 @@ acquire1_thread_func (void *lock_)
 {
   struct lock *lock = lock_;
 
+  // printf("2️⃣[%s] lock_acquire 호출\n", thread_current()->name);
   lock_acquire (lock);
   msg ("acquire1: got the lock");
   lock_release (lock);
@@ -58,6 +59,7 @@ acquire2_thread_func (void *lock_)
 {
   struct lock *lock = lock_;
 
+  // printf("3️⃣[%s] lock_acquire 호출\n", thread_current()->name);
   lock_acquire (lock);
   msg ("acquire2: got the lock");
   lock_release (lock);

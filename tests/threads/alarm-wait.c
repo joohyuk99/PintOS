@@ -48,7 +48,7 @@ static void sleeper (void *);
 
 /* Runs THREAD_CNT threads thread sleep ITERATIONS times each. */
 static void
-test_sleep (int thread_cnt, int iterations) 
+test_sleep (int thread_cnt, int iterations) // iterations: 각 스레드가 대기하는 횟수
 {
   struct sleep_test test;
   struct sleep_thread *threads;
@@ -79,21 +79,23 @@ test_sleep (int thread_cnt, int iterations)
 
   /* Start threads. */
   ASSERT (output != NULL);
+  /* 각 스레드 생성 후 ready list에 추가 */
   for (i = 0; i < thread_cnt; i++)
     {
-      struct sleep_thread *t = threads + i;
+      struct sleep_thread *t = threads + i; // 쓰레드 배열에서 순서대로 스레드 가져오기
       char name[16];
       
       t->test = &test;
       t->id = i;
-      t->duration = (i + 1) * 10;
-      t->iterations = 0;
+      t->duration = (i + 1) * 10; // duration: 각 스레드의 수면 시간
+      t->iterations = 0; // 스레드가 대기한 횟수
 
       snprintf (name, sizeof name, "thread %d", i);
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
   
-  /* Wait long enough for all the threads to finish. */
+    /* Wait long enough for all the threads to finish. */
+  // printf ("0️⃣ timer_sleep (100 + thread_cnt * iterations * 10 + 100) 호출\n");
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
 
   /* Acquire the output lock in case some rogue thread is still
@@ -137,6 +139,7 @@ test_sleep (int thread_cnt, int iterations)
 static void
 sleeper (void *t_) 
 {
+  // printf("sleeper 왔니??\n");
   struct sleep_thread *t = t_;
   struct sleep_test *test = t->test;
   int i;

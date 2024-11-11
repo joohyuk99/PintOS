@@ -32,7 +32,9 @@ test_priority_donate_multiple (void)
   lock_init (&a);
   lock_init (&b);
 
+//   printf("0️⃣[%s] lock_acquire(&a) 호출\n", thread_current()->name);
   lock_acquire (&a);
+//   printf("0️⃣[%s] lock_acquire(&b) 호출\n", thread_current()->name);
   lock_acquire (&b);
 
   thread_create ("a", PRI_DEFAULT + 1, a_thread_func, &a);
@@ -43,11 +45,13 @@ test_priority_donate_multiple (void)
   msg ("Main thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 2, thread_get_priority ());
 
+//   printf("3️⃣[%s] lock_release(&b) 호출\n", thread_current()->name);
   lock_release (&b);
   msg ("Thread b should have just finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 1, thread_get_priority ());
 
+//   printf("5️⃣[%s] lock_release(&a) 호출\n", thread_current()->name);
   lock_release (&a);
   msg ("Thread a should have just finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
@@ -58,9 +62,10 @@ static void
 a_thread_func (void *lock_) 
 {
   struct lock *lock = lock_;
-
+//   printf("1️⃣[%s] lock_acquire(lock) 호출\n", thread_current()->name);
   lock_acquire (lock);
   msg ("Thread a acquired lock a.");
+//   printf("6️⃣[%s] lock_release(lock) 호출\n", thread_current()->name);
   lock_release (lock);
   msg ("Thread a finished.");
 }
@@ -69,9 +74,10 @@ static void
 b_thread_func (void *lock_) 
 {
   struct lock *lock = lock_;
-
+//   printf("2️⃣[%s] lock_acquire(lock) 호출\n", thread_current()->name);
   lock_acquire (lock);
   msg ("Thread b acquired lock b.");
+//   printf("4️⃣[%s] lock_release(lock) 호출\n", thread_current()->name);
   lock_release (lock);
   msg ("Thread b finished.");
 }
