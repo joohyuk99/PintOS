@@ -212,7 +212,7 @@ void do_iret (struct intr_frame *tf);
 void thread_sleep (int64_t ticks);
 void thread_awake (int64_t ticks);
 bool wakeup_time_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
-bool thread_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+bool thread_compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void thread_test_preemption(void);
 bool donation_priority_higher(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 

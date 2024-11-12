@@ -63,7 +63,7 @@ sema_down (struct semaphore *sema) {
 	old_level = intr_disable ();
 	while (sema->value == 0) { // 세마포어의 값이 양수가 될 때까지 대기
 		// printf("⏸️ sema_down 실행: %lld\n", sema->value);
-		list_insert_ordered(&sema->waiters, &thread_current()->elem, thread_priority_higher, NULL); // 현재 스레드를 세마포어의 대기자 목록에 추가
+		list_insert_ordered(&sema->waiters, &thread_current()->elem, thread_compare_priority, NULL); // 현재 스레드를 세마포어의 대기자 목록에 추가
 		// printf("🔍 sema_down 실행: 현재 스레드: %s(%lld), 대기자 목록: %s(%lld)\n", thread_current()->name, thread_current()->priority, list_entry(list_back(&sema->waiters), struct thread, elem)->name, list_entry(list_back(&sema->waiters), struct thread, elem)->priority);
 		thread_block (); // 현재 스레드를 블록 상태로 전환
 	}
@@ -109,7 +109,7 @@ sema_up (struct semaphore *sema) {
 	old_level = intr_disable ();
 	if (!list_empty (&sema->waiters)) {
 		// 대기자 목록 우선순위 순으로 정렬
-		list_sort(&sema->waiters, thread_priority_higher, NULL);
+		list_sort(&sema->waiters, thread_compare_priority, NULL);
 
 		// 우선순위가 가장 높은 스레드를 깨움
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
