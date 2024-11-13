@@ -75,6 +75,9 @@ initd (void *f_name) {
  * TID_ERROR if the thread cannot be created. */
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
+	/* 현재 스레드를 복제하여 새로운 스레드를 생성
+	 * [TODO] 부모의 intr_frame를 자식에게 전달하기 위해 thread_create에 parent_if를 전달할 수 있도록 수정 필요 */
+
 	/* Clone current thread to new thread.*/
 	return thread_create (name,
 			PRI_DEFAULT, __do_fork, thread_current ());
@@ -91,22 +94,20 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	void *newpage;
 	bool writable;
 
-	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
+	/* 1. [TODO] 부모의 페이지가 커널 영역에 있는 경우, 즉시 리턴 */
 
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
 
-	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
-	 *    TODO: NEWPAGE. */
 
-	/* 4. TODO: Duplicate parent's page to the new page and
-	 *    TODO: check whether parent's page is writable or not (set WRITABLE
-	 *    TODO: according to the result). */
+	/* 3. [TODO] 자식 프로세스를 위해 새로운 유저페이지를 할당하고 newpage에 저장 */
+
+	/* 4. [TODO] 부모의 페이지 내용을 newpage에 복사하고, 페이지 쓰기 가능 여부 확인 */
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
-		/* 6. TODO: if fail to insert page, do error handling. */
+		/* 6. [TODO] 페이지 삽입에 실패할 경우 에러처리 수행 */
 	}
 	return true;
 }
@@ -121,7 +122,7 @@ __do_fork (void *aux) {
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
-	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
+	/* [TODO] 부모의 intr_frame를 전달하기 위해 aux를 구조체로 만들어 parent와 parent_if를 함께 전달 */
 	struct intr_frame *parent_if;
 	bool succ = true;
 
@@ -143,11 +144,8 @@ __do_fork (void *aux) {
 		goto error;
 #endif
 
-	/* TODO: Your code goes here.
-	 * TODO: Hint) To duplicate the file object, use `file_duplicate`
-	 * TODO:       in include/filesys/file.h. Note that parent should not return
-	 * TODO:       from the fork() until this function successfully duplicates
-	 * TODO:       the resources of parent.*/
+	/* [TODO] 부모 프로세스의 파일 디스크립터 테이블 복제 (file_duplicate() 사용)
+			  부모는 자식의 리소스 복제가 완료될 때까지 반환되지 않아야함. */
 
 	process_init ();
 
@@ -184,6 +182,9 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
+	/* [TODO] 프로그램의 인자를 파싱하여 스택에 적재해야함
+			  -> 스택 포인터 조정, 인자 저장, argv 포인터 설정 필요 */
+	
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -201,9 +202,23 @@ process_exec (void *f_name) {
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
-	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
-	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */
+	/* [TODO] 자식 프로세스의 종료 상태를 저장할 자료 구조 필요
+			  -> thread 구조체의 자식 프로세스의 리스트 추가하고 각 자식 프로세스의 종료 상태 관리하기 */
+
+	/* [TODO] 주어진 child_tid가 현재 프로세스의 자식인지 확인 (아닐 경우 -1 반환) */
+
+	/* [TODO] 이미 해당 자식에 대해 process_wait이 호출되었는지 확인 (이미 호출되었으면 -1 반환) */
+
+	/* [TODO] 자식 프로세스가 종료될 때까지 대기하기
+			  -> 세마포어 또는 컨디션배리어블 사용하여 동기화 필요 */
+	
+	/* [TODO] 자식 프로세스가 종료되면 그 상태 반환하고, 자식 프로세스의 자료구조를 정리하여 메모리 누수 방지 */
+
+	/* 일단은 무한 루프를 통해 부모 프로세스가 종료되지 않도록 하기 */
+	while(1) {
+		thread_yield();
+	}
+
 	return -1;
 }
 
@@ -211,10 +226,7 @@ process_wait (tid_t child_tid UNUSED) {
 void
 process_exit (void) {
 	struct thread *curr = thread_current ();
-	/* TODO: Your code goes here.
-	 * TODO: Implement process termination message (see
-	 * TODO: project2/process_termination.html).
-	 * TODO: We recommend you to implement process resource cleanup here. */
+	/* [TODO] 프로세스 종료 메세지 구현, 프로세스의 리소스를 정리하는 코드 추가 필요 */
 
 	process_cleanup ();
 }
@@ -414,8 +426,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
-	/* TODO: Your code goes here.
-	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	/* [TODO] 프로그램의 인자들을 파싱하여 스택에 적재하는 코드 작성
+			  -> file_name에서 프로그램 이름과 인자들을 분리하고, setup_stack() 수정하여 스택에 인자들 올리기 */
 
 	success = true;
 
@@ -545,6 +557,8 @@ setup_stack (struct intr_frame *if_) {
 		success = install_page (((uint8_t *) USER_STACK) - PGSIZE, kpage, true);
 		if (success)
 			if_->rsp = USER_STACK;
+			/* [TODO] 스택에 프로그램의 인자들을 적재하는 작업 수행
+					  -> 인자들을 역순으로 스택에 저장, 스택 포인터 조정, argv 배열 구성, argc 설정 */
 		else
 			palloc_free_page (kpage);
 	}
