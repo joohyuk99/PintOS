@@ -49,6 +49,9 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
+	/* argument passing */
+	char *save_ptr;
+	strtok_r(file_name, " ", &save_ptr);
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
@@ -189,8 +192,7 @@ process_exec (void *f_name) {
 	int argc = 0;
 	/* 받은 문자열 파싱 */
 	for (token = strtok_r(file_name, " ", &save); token != NULL; token = strtok_r(NULL, " ", &save)) {
-		argv[argc] = token;
-		argc++;
+		argv[argc++] = token;
 	}
 	/* 파싱하고 남은 문자열 스택에 저장 */
 	argument_stack(argv, argc, &_if);
@@ -234,10 +236,9 @@ process_wait (tid_t child_tid UNUSED) {
 	/* [TODO] 자식 프로세스가 종료되면 그 상태 반환하고, 자식 프로세스의 자료구조를 정리하여 메모리 누수 방지 */
 
 	/* 일단은 무한 루프를 통해 부모 프로세스가 종료되지 않도록 하기 */
-	while(1) {
-		thread_yield();
-	}
+	for (int i=0; i < 100000000; i++) {
 
+	}
 	return -1;
 }
 
