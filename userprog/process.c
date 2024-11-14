@@ -185,9 +185,8 @@ process_exec (void *f_name) {
 	/* [TODO] 프로그램의 인자를 파싱하여 스택에 적재해야함
 			  -> 스택 포인터 조정, 인자 저장, argv 포인터 설정 필요 */
 	char *argv[128];
-	int argc = 0;
-
 	char *token, *save;
+	int argc = 0;
 	/* 받은 문자열 파싱 */
 	for (token = strtok_r(file_name, " ", &save); token != NULL; token = strtok_r(NULL, " ", &save)) {
 		argv[argc] = token;
@@ -198,12 +197,16 @@ process_exec (void *f_name) {
 	_if.R.rdi = argc;			    // argc -> RDI.
 	_if.R.rsi = _if.rsp + 8;	// argv -> RSI. 유저 스택에 쌓은 argv의 주소를 가져와야 하므로 _if.rsp+8 
 
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)_if.rsp, true); // user stack을 16진수로 프린트
 	/* 작업이 끝났으므로 동적할당한 file_name이 담긴 메모리 free */
 	palloc_free_page (file_name);
-	
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
+}
+
+void argument_stack(char **argv, int argc, struct intr_frame *if_) {
+
 }
 
 
@@ -444,7 +447,6 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* [TODO] 프로그램의 인자들을 파싱하여 스택에 적재하는 코드 작성
 			  -> file_name에서 프로그램 이름과 인자들을 분리하고, setup_stack() 수정하여 스택에 인자들 올리기 */
-
 	success = true;
 
 done:
