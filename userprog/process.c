@@ -202,7 +202,30 @@ process_exec (void *f_name) {
 	NOT_REACHED ();
 }
 
-void argument_stack(char **argv, int argc, struct intr_frame *if_) {
+void argument_stack(char **argv, int argc, void **rsp) {
+	for (int i = argc-1; i > -1, i--) {
+		for (int j = strlen(argv[i]); j > -1; j--) {
+			(*rsp)--;							// 스택주소 지정
+			**(char **)rsp = argv[i][j];		// 스택 주소에 문자 저장
+		}
+		argv[i] = *(char **)rsp;				// argv에 현재 rsp(스택주소)값 저장
+	}
+
+	int padding = (int)*rsp % 8;
+	for (int i = 0; i < padding; i++) {
+		(*rsp)--;
+		**(uint8_t **)rsp = 0;					// rsp 직전까지 패딩으로 채우기
+	}
+	(*rsp) -= 8;
+	**(char ***)rsp  = 0;						// char* 타입의 0 push (argument 문자열 종료 표현)
+
+	for (int i = argc-1; i > -1; i--) {			// argument address push
+		(*rsp) -= 8;
+		**(char ***)rsp = argv[i];
+	}
+
+	(*rsp) -= 8;
+	**(void ***)rsp = 0;						// void* 타입의 0 push (return address)
 
 }
 
