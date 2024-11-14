@@ -177,31 +177,26 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
-	/* And then load the binary */
-	success = load (file_name, &_if);
-
-	/* If load failed, quit. */
-	palloc_free_page (file_name);
-	if (!success)
-		return -1;
-
 	/* [TODO] 프로그램의 인자를 파싱하여 스택에 적재해야함
-			  -> 스택 포인터 조정, 인자 저장, argv 포인터 설정 필요 */
-	char *argv[128];
-	char *token, *save;
+			-> 스택 포인터 조정, 인자 저장, argv 포인터 설정 필요 */
+	char *argv[128], *token, *save_ptr;
 	int argc = 0;
 	/* 받은 문자열 파싱 */
-	for (token = strtok_r(file_name, " ", &save); token != NULL; token = strtok_r(NULL, " ", &save)) {
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
 		argv[argc++] = token;
-	}
-	/* 파싱하고 남은 문자열 스택에 저장 */
-	argument_stack(argv, argc, &_if);
-	_if.R.rdi = argc;			    // argc -> RDI.
-	_if.R.rsi = _if.rsp + 8;	// argv -> RSI. 유저 스택에 쌓은 argv의 주소를 가져와야 하므로 _if.rsp+8 
 
+	/* And then load the binary */
+	success = load (file_name, &_if);
+	/* 파싱하고 남은 문자열 스택에 저장 */
+	argument_stack(argv, argc, &_if.rsp);
+	_if.R.rdi = argc;			    	// argc -> RDI.
+	_if.R.rsi = (char *)_if.rsp + 8;	// argv -> RSI. 유저 스택에 쌓은 argv의 주소를 가져와야 하므로 _if.rsp+8 
 	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)_if.rsp, true); // user stack을 16진수로 프린트
-	/* 작업이 끝났으므로 동적할당한 file_name이 담긴 메모리 free */
-	palloc_free_page (file_name);
+
+	/* If load failed, quit. */
+	palloc_free_page (file_name);		/* 작업이 끝났으므로 동적할당한 file_name이 담긴 메모리 free */
+	if (!success)
+		return -1;
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
