@@ -14,6 +14,7 @@
 #include "threads/init.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "userprog/process.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -21,9 +22,10 @@ void syscall_handler (struct intr_frame *);
 void addr_validation(const char addr);
 
 void halt(void);
-int exec(const char *addr);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
+int exec(const char *addr);
+int fork(const char *thread_name, struct intr_frame *_if);
 
 /* System call.
  *
@@ -77,6 +79,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXEC:
 			f->R.rax = exec(f->R.rdi);
 			break;
+		case SYS_FORK:
+			f->R.rax = fork(f->R.rdi, f);
+			break;
 		default:
 			exit(-1);
 			break;
@@ -124,3 +129,6 @@ bool remove(const char *file) {
 	return filesys_remove(file);					// 파일 제거 성공 시 true, 실패 시 false
 }
 
+int fork(const char *thread_name, struct intr_frame *_if) {
+	return process_fork(thread_name, _if);
+}
