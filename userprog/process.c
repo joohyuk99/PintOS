@@ -121,19 +121,24 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. [TODO] 부모의 페이지가 커널 영역에 있는 경우, 즉시 리턴 */
-
+	if (is_kernel_vaddr(va))
+		return true;
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
-
-
+	if (parent_page == NULL)
+		return false;
 	/* 3. [TODO] 자식 프로세스를 위해 새로운 유저페이지를 할당하고 newpage에 저장 */
-
+	newpage = palloc_get_page(PAL_USER | PAL_ZERO);
+	if (newpage == NULL)
+		return false;
 	/* 4. [TODO] 부모의 페이지 내용을 newpage에 복사하고, 페이지 쓰기 가능 여부 확인 */
-
+	memcpy(newpage, parent_page, PGSIZE);
+	writable = is_writable(pte);
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. [TODO] 페이지 삽입에 실패할 경우 에러처리 수행 */
+		return false;
 	}
 	return true;
 }
@@ -160,7 +165,7 @@ __do_fork (void *aux) {
 	current->pml4 = pml4_create();
 	if (current->pml4 == NULL)
 		goto error;
-
+       
 	process_activate (current);
 #ifdef VM
 	supplemental_page_table_init (&current->spt);
