@@ -20,6 +20,7 @@ void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
 void addr_validation(const char addr);
+struct file *process_get_file (int fd);
 
 void halt(void);
 bool create(const char *file, unsigned initial_size);
@@ -28,6 +29,7 @@ int exec(const char *addr);
 int fork(const char *thread_name, struct intr_frame *_if);
 int wait(int pid);
 int open(const char *file);
+int filesize(int fd);
 
 /* System call.
  *
@@ -88,6 +90,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WAIT:
 			f->R.rax = wait(f->R.rdi);
 			break;
+		case SYS_OPEN:
+			f->R.rax = open(f->R.rdi);
+			break;
+		case SYS_FILESIZE:
+			f->R.rax = filesize(f->R.rdi);
+        	break;
 		default:
 			exit(-1);
 			break;
@@ -152,4 +160,18 @@ int open(const char *file) {
 	if (fd == -1) 
 		file_close(file_open);
 	return fd;
+}
+
+int filesize(int fd) {
+	struct file *file = process_get_file(fd);
+	if (file == NULL)
+		return -1;
+	return file_length(file);
+}
+
+struct file *process_get_file (int fd) {
+	struct thread *cur = thread_current();
+	if (fd < 0 || fd >= FDT_COUNT_LIMIT)
+		return NULL;
+	return cur->fd_table[fd];
 }
