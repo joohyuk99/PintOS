@@ -203,7 +203,7 @@ process_exec (void *f_name) {
 }
 
 void argument_stack(char **argv, int argc, void **rsp) {
-	for (int i = argc-1; i > -1, i--) {
+	for (int i = argc-1; i > -1; i--) {
 		for (int j = strlen(argv[i]); j > -1; j--) {
 			(*rsp)--;							// 스택주소 지정
 			**(char **)rsp = argv[i][j];		// 스택 주소에 문자 저장
@@ -254,7 +254,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* [TODO] 자식 프로세스가 종료되면 그 상태 반환하고, 자식 프로세스의 자료구조를 정리하여 메모리 누수 방지 */
 
 	/* 일단은 무한 루프를 통해 부모 프로세스가 종료되지 않도록 하기 */
-	for (int i=0; i < 100000000; i++) {
+	for (int i=0; i < 1000000000; i++) {
 
 	}
 	return -1;
