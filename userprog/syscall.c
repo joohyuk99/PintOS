@@ -26,6 +26,7 @@ bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
 int exec(const char *addr);
 int fork(const char *thread_name, struct intr_frame *_if);
+int wait(int pid);
 
 /* System call.
  *
@@ -82,6 +83,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FORK:
 			f->R.rax = fork(f->R.rdi, f);
 			break;
+		case SYS_WAIT:
+			f->R.rax = wait(f->R.rdi);
+			break;
 		default:
 			exit(-1);
 			break;
@@ -131,4 +135,8 @@ bool remove(const char *file) {
 
 int fork(const char *thread_name, struct intr_frame *_if) {
 	return process_fork(thread_name, _if);
+}
+
+int wait(int pid) {
+	return process_wait(pid);
 }
