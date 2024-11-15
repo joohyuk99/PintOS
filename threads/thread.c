@@ -1,3 +1,5 @@
+#define USERPROG
+
 #include "threads/thread.h"
 #include "threads/fixed_point.h"
 #include <debug.h>
