@@ -486,6 +486,7 @@ init_thread(struct thread *t, const char *name, int priority)
 
 	t->nice = NICE_DEFAULT;
 	t->recent_cpu = RECENT_CPU_DEFAULT;
+	t->next_fd = 2;
 
 	list_init(&(t->child_list));
 

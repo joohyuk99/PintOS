@@ -649,6 +649,19 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 
+int process_add_file(struct file *f) {
+	struct thread *cur = thread_current();
+	struct file **fd_table = cur->fd_table;
+
+	while (cur->next_fd < FDT_COUNT_LIMIT && fd_table[cur->next_fd])
+		cur->next_fd ++;
+	if (cur->next_fd >= FDT_COUNT_LIMIT)
+		return -1;
+	fd_table[cur->next_fd] = f;
+
+	return cur->next_fd;
+}
+
 /* Adds a mapping from user virtual address UPAGE to kernel
  * virtual address KPAGE to the page table.
  * If WRITABLE is true, the user process may modify the page;
