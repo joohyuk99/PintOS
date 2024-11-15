@@ -8,8 +8,14 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 
+#include "threads/palloc.h"
+
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+
+void addr_validation(const char addr);
+
+int exec(const char *addr);
 
 /* System call.
  *
@@ -37,10 +43,37 @@ syscall_init (void) {
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
+void addr_validation(const char addr) {
+	struct thread *cur = thread_current ();
+    if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(cur>pml4, addr) == NULL) 
+        exit(-1);		
+}
+
 /* The main system call interface */
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
+	switch (f->R.rax) {
+		case SYS_EXEC:
+			f->R.rax = exec(f->R.rdi);
+			break;
+		
 	printf ("system call!\n");
 	thread_exit ();
+	}
 }
+
+
+int exec(const char *addr) {
+	addr_validation(addr);
+
+	char *addr_copy;
+	addr_copy = palloc_get_page(0);
+	if (addr_copy == NULL)
+		exit(-1);
+	strlcpy(addr_copy, addr, PGSIZE);
+
+	if (process_exec(addr) == -1)
+		exit(-1);
+}
+
