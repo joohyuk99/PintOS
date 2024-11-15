@@ -230,6 +230,9 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+	t->fd_table = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
+	if (t->fd_table == NULL)
+		return TID_ERROR;
 
 	/* Add to run queue. */
 	thread_unblock(t);
@@ -478,7 +481,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
 	sema_init(&t->load_sema, 0);
-	sema_init(&t->wait_same, 0);
+	sema_init(&t->wait_sema, 0);
 	sema_init(&t->exit_sema, 0);
 
 	t->nice = NICE_DEFAULT;
