@@ -149,11 +149,12 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* [TODO] 부모의 intr_frame를 전달하기 위해 aux를 구조체로 만들어 parent와 parent_if를 함께 전달 */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent->parent_if;
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	if_.R.rax = 0; 
 
 	/* 2. Duplicate PT */
 	current->pml4 = pml4_create();
@@ -172,13 +173,23 @@ __do_fork (void *aux) {
 
 	/* [TODO] 부모 프로세스의 파일 디스크립터 테이블 복제 (file_duplicate() 사용)
 			  부모는 자식의 리소스 복제가 완료될 때까지 반환되지 않아야함. */
-
+	for (int i = 0; i < FDT_COUNT_LIMIT; i++) {
+		struct file *file = parent->fd_table[i];
+		if (file == NULL)
+			continue;
+		if (file > 2)
+			file = file_duplicate(file);
+		current->fd_table[i] = file;
+	}
+	current->next_fd = parent->next_fd;
+	sema_up (&current->load_sema);
 	process_init ();
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
+	sema_up(&current->load_sema);
 	thread_exit ();
 }
 
