@@ -1,3 +1,5 @@
+#define USERPROG
+
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
@@ -16,6 +18,7 @@ void syscall_handler (struct intr_frame *);
 
 void addr_validation(const char addr);
 
+void halt(void);
 int exec(const char *addr);
 
 /* System call.
@@ -97,4 +100,12 @@ int exec(const char *addr) {
 
 void halt(void) {
 	power_off();
+}
+
+void exit(int status) {
+	struct thread *cur = thread_current();
+	cur->exit_status = status;
+
+	printf("%s: exit(%d)\n", thread_name(), cur->exit_status);
+	thread_exit();
 }
