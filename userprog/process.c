@@ -304,7 +304,7 @@ void
 process_exit (void) {
 	struct thread *curr = thread_current ();
 	/* [TODO] 프로세스 종료 메세지 구현, 프로세스의 리소스를 정리하는 코드 추가 필요 */
-
+	file_close(curr->running);
 	process_cleanup ();
 }
 
