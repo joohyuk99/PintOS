@@ -12,6 +12,8 @@
 
 #include "threads/palloc.h"
 #include "threads/init.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -20,6 +22,7 @@ void addr_validation(const char addr);
 
 void halt(void);
 int exec(const char *addr);
+bool create(const char *file, unsigned initial_size);
 
 /* System call.
  *
@@ -108,4 +111,9 @@ void exit(int status) {
 
 	printf("%s: exit(%d)\n", thread_name(), cur->exit_status);
 	thread_exit();
+}
+
+bool create(const char *file, unsigned initial_size) {
+	addr_validation(file);
+	return filesys_create(file, initial_size);
 }
