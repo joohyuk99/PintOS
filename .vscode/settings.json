@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "interrupt.h": "c",
-        "synch.h": "c"
+        "synch.h": "c",
+        "init.h": "c",
+        "file.h": "c",
+        "filesys.h": "c",
+        "process.h": "c",
+        "intrinsic.h": "c"
     }
 }

@@ -30,6 +30,7 @@ int fork(const char *thread_name, struct intr_frame *_if);
 int wait(int pid);
 int open(const char *file);
 int filesize(int fd);
+void seek(int fd, unsigned position);
 
 /* System call.
  *
@@ -96,6 +97,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_FILESIZE:
 			f->R.rax = filesize(f->R.rdi);
         	break;
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+			return;
 		default:
 			exit(-1);
 			break;
@@ -174,4 +178,11 @@ struct file *process_get_file (int fd) {
 	if (fd < 0 || fd >= FDT_COUNT_LIMIT)
 		return NULL;
 	return cur->fd_table[fd];
+}
+
+void seek(int fd, unsigned position) {
+	struct file *file = process_get_file(fd);
+	if (file <= 2)
+		return;
+	file->pos = position;
 }
