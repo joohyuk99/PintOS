@@ -211,16 +211,15 @@ tid_t thread_create(const char *name, int priority,
 	tid_t tid;
 
 	ASSERT(function != NULL);
-
 	/* Allocate thread. */
 	t = palloc_get_page(PAL_ZERO);
 	if (t == NULL)
 		return TID_ERROR;
-
 	/* Initialize thread. */
 	init_thread(t, name, priority);
 	tid = t->tid = allocate_tid();
-
+	
+	list_push_back(&thread_current()->child_list, &t->child_elem);
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t)kernel_thread;
@@ -478,9 +477,12 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->init_priority = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
+	sema_init(&t->load_sema, 0);
 
 	t->nice = NICE_DEFAULT;
 	t->recent_cpu = RECENT_CPU_DEFAULT;
+
+	list_init(&(t->child_list));
 
 	t->magic = THREAD_MAGIC;
 

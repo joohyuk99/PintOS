@@ -24,6 +24,8 @@
 #include "vm/vm.h"
 #endif
 
+#include "threads/synch.h"
+
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
@@ -82,10 +84,29 @@ tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* 현재 스레드를 복제하여 새로운 스레드를 생성
 	 * [TODO] 부모의 intr_frame를 자식에게 전달하기 위해 thread_create에 parent_if를 전달할 수 있도록 수정 필요 */
+	struct thread *cur = thread_current();
+	memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
 
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	tid_t pid = thread_create (name,PRI_DEFAULT, __do_fork, thread_current ());
+	if (pid == TID_ERROR)
+		return TID_ERROR;
+
+	struct thread *child = get_child_process(pid);
+	sema_down(&child->load_sema);
+
+	return pid;
+}
+
+struct thread *get_child_process(int pid) {
+	struct thread *cur = thread_current();
+	struct list *child_list = &cur->child_list;
+	for (struct list_elem *e = list_begin(child_list); e != list_end(child_list); e = list_next(e)) {
+		struct thread *t = list_entry(e, struct thread, child_elem);
+		if (t->tid == pid) 
+			return t;
+	}
+	return NULL;
 }
 
 #ifndef VM

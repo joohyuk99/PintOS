@@ -117,6 +117,12 @@ struct thread
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
 	int exit_status;
+	struct file **fd_table;
+	int next_fd;
+	struct intr_frame parent_if;
+	struct list child_list;
+	struct list_elem child_elem;
+	struct semaphore load_sema;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
