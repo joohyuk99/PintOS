@@ -9,6 +9,7 @@
 #include "intrinsic.h"
 
 #include "threads/palloc.h"
+#include "threads/init.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -45,7 +46,7 @@ syscall_init (void) {
 
 void addr_validation(const char addr) {
 	struct thread *cur = thread_current ();
-    if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(cur>pml4, addr) == NULL) 
+    if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(cur->pml4, addr) == NULL) 
         exit(-1);		
 }
 
@@ -54,14 +55,31 @@ void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
 	switch (f->R.rax) {
+		case SYS_HALT:
+			halt();
+			break;
+		case SYS_EXIT:
+			exit(f->R.rdi);
+			break;
+		case SYS_CREATE:
+			f->R.rax = create(f->R.rdi, f->R.rsi);
+			break;
+		case SYS_REMOVE:
+			f->R.rax = remove(f->R.rdi);
+			break;
 		case SYS_EXEC:
 			f->R.rax = exec(f->R.rdi);
+			break;
+		default:
+			exit(-1);
 			break;
 		
 	printf ("system call!\n");
 	thread_exit ();
 	}
 }
+
+
 
 
 int exec(const char *addr) {
@@ -77,3 +95,6 @@ int exec(const char *addr) {
 		exit(-1);
 }
 
+void halt(void) {
+	power_off();
+}
