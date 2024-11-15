@@ -23,6 +23,7 @@ void addr_validation(const char addr);
 void halt(void);
 int exec(const char *addr);
 bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
 
 /* System call.
  *
@@ -115,5 +116,11 @@ void exit(int status) {
 
 bool create(const char *file, unsigned initial_size) {
 	addr_validation(file);
-	return filesys_create(file, initial_size);
+	return filesys_create(file, initial_size);		// 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
 }
+
+bool remove(const char *file) {
+	addr_validation(file);
+	return filesys_remove(file);					// 파일 제거 성공 시 true, 실패 시 false
+}
+
