@@ -27,6 +27,7 @@ bool remove(const char *file);
 int exec(const char *addr);
 int fork(const char *thread_name, struct intr_frame *_if);
 int wait(int pid);
+int open(const char *file);
 
 /* System call.
  *
@@ -140,4 +141,15 @@ int fork(const char *thread_name, struct intr_frame *_if) {
 
 int wait(int pid) {
 	return process_wait(pid);
+}
+
+int open(const char *file) {
+	addr_validation(file);
+	struct file *file_open = filesys_open(file);
+	if (file_open == NULL)
+		return -1;
+	int fd = process_add_file(file_open);
+	if (fd == -1) 
+		file_close(file_open);
+	return fd;
 }
