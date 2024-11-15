@@ -21,8 +21,10 @@ void syscall_handler (struct intr_frame *);
 
 void addr_validation(const char addr);
 struct file *process_get_file (int fd);
+void process_close_file(int fd);
 
 void halt(void);
+void exit(int status);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
 int exec(const char *addr);
@@ -31,6 +33,8 @@ int wait(int pid);
 int open(const char *file);
 int filesize(int fd);
 void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
 
 /* System call.
  *
@@ -63,6 +67,15 @@ void addr_validation(const char addr) {
 	struct thread *cur = thread_current ();
     if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(cur->pml4, addr) == NULL) 
         exit(-1);		
+}
+
+void process_close_file(int fd)
+{
+    struct thread *cur = thread_current();
+    struct file **fd_table = cur->fd_table;
+    if (fd < 2 || fd >= FDT_COUNT_LIMIT)
+        return NULL;
+    fd_table[fd] = NULL;
 }
 
 /* The main system call interface */
@@ -99,6 +112,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
         	break;
 		case SYS_SEEK:
 			seek(f->R.rdi, f->R.rsi);
+			return;
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+			return;
+		case SYS_CLOSE:
+			close(f->R.rdi);
 			return;
 		default:
 			exit(-1);
@@ -185,4 +204,19 @@ void seek(int fd, unsigned position) {
 	if (file <= 2)
 		return;
 	file->pos = position;
+}
+
+unsigned tell(int fd) {
+	struct file *file = process_get_file(fd);
+	if (file <= 2)
+		return;
+	return file_tell(file);
+}
+
+void close(int fd) {
+	struct file *file = process_get_file(fd);
+	if (file == NULL)
+		return;
+	file_close(file);
+	process_close_file(fd);
 }
