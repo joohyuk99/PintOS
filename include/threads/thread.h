@@ -123,6 +123,7 @@ struct thread
 	struct list child_list;
 	struct list_elem child_elem;
 	struct semaphore load_sema;
+	struct file *running;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
