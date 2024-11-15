@@ -282,21 +282,21 @@ int
 process_wait (tid_t child_tid UNUSED) {
 	/* [TODO] 자식 프로세스의 종료 상태를 저장할 자료 구조 필요
 			  -> thread 구조체의 자식 프로세스의 리스트 추가하고 각 자식 프로세스의 종료 상태 관리하기 */
-
+	
 	/* [TODO] 주어진 child_tid가 현재 프로세스의 자식인지 확인 (아닐 경우 -1 반환) */
-
+	struct thread *child = get_child_process(child_tid);
+	if (child == NULL)
+		return -1;
 	/* [TODO] 이미 해당 자식에 대해 process_wait이 호출되었는지 확인 (이미 호출되었으면 -1 반환) */
-
+	
 	/* [TODO] 자식 프로세스가 종료될 때까지 대기하기
 			  -> 세마포어 또는 컨디션배리어블 사용하여 동기화 필요 */
-	
+	sema_down(&child->wait_sema);
 	/* [TODO] 자식 프로세스가 종료되면 그 상태 반환하고, 자식 프로세스의 자료구조를 정리하여 메모리 누수 방지 */
-
+	list_remove(&child->child_elem);
+	sema_up(&child->exit_sema);
 	/* 일단은 무한 루프를 통해 부모 프로세스가 종료되지 않도록 하기 */
-	for (int i=0; i < 1000000000; i++) {
-
-	}
-	return -1;
+	return child->exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */

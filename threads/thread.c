@@ -478,6 +478,8 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
 	sema_init(&t->load_sema, 0);
+	sema_init(&t->wait_same, 0);
+	sema_init(&t->exit_sema, 0);
 
 	t->nice = NICE_DEFAULT;
 	t->recent_cpu = RECENT_CPU_DEFAULT;
