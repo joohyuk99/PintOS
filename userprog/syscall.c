@@ -36,6 +36,7 @@ void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
 int read(int fd, void *buffer, unsigned size);
+int write(int fd, void *buffer, unsigned size);
 
 /* System call.
  *
@@ -122,6 +123,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 		case SYS_READ:
 	        f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
+			break;
+		case SYS_WRITE:
+			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 		default:
 			exit(-1);
@@ -228,7 +232,7 @@ void close(int fd) {
 int read(int fd, void *buffer, unsigned size) {
 	if (buffer == NULL || is_user_vaddr(buffer))
 		return -1;
-		
+
 	if (fd == 0) {
 		unsigned i;
 		char *buf = (char *)buffer;
@@ -247,4 +251,26 @@ int read(int fd, void *buffer, unsigned size) {
 	if (bytes_read < 0)
 		return -1;
 	return bytes_read;
+}
+
+int write(int fd, void *buffer, unsigned size) {
+	if (buffer == NULL || is_user_vaddr(buffer))
+		return -1;
+	
+	if (fd == 0) 
+		return -1;
+
+	if (fd == 1) {
+		putbuf(buffer, size);
+		return size;
+	}
+
+	struct file *file = process_get_file(fd);
+	if (file == NULL)
+		return -1;
+	
+	int bytes_write = file_write(file, buffer, size);
+	if (bytes_write < 0)
+		return -1;
+	return bytes_write;
 }
