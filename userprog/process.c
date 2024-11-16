@@ -165,6 +165,19 @@ process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
 
+	// parsing f_name
+	const int MAX_ARG = 100;
+	int argc = 0;
+	char *argv[MAX_ARG];
+	char *argv_location[MAX_ARG];
+
+	argv[argc++] = f_name;
+	while(argv[argc++] = strstr(argv[argc - 1], " ")) {
+		*argv[argc] = '\0';
+		argv[argc]++;
+	}
+	argc--;
+	printf("🛞   file name: !%s!, %d\n", argv[0], argc);
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -177,12 +190,40 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
-	success = load (file_name, &_if);
+	success = load (argv[0], &_if);
+
+	for(int i = argc - 1; i >= 0; i--) {
+		_if.rsp -= strlen(argv[i]) + 1;
+		strlcpy((char*)_if.rsp, argv[i], strlen(argv[i]) + 1);
+		argv_location[i] = (char*)_if.rsp;
+	}
+
+	while((uint64_t)_if.rsp % 16 != 0) {
+		_if.rsp -= 1;
+		*((uint8_t*)_if.rsp) = (uint8_t)0;
+	}
+
+	_if.rsp -= sizeof(char*);
+	*((char**)_if.rsp) = NULL;
+	for(int i = argc - 1; i >= 0; i--) {
+		_if.rsp -= sizeof(char*);
+		*((char **)_if.rsp) = argv_location[i];
+	}
+
+	char **argv_ptr = (char **)_if.rsp;
+	_if.rsp -= sizeof(char *);
+	*((char **)_if.rsp) = NULL;
+
+	_if.R.rdi = argc;
+	_if.R.rsi = (uint64_t)argv_ptr;
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
+	palloc_free_page (f_name);
 	if (!success)
 		return -1;
+
+	// debuging
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -204,6 +245,30 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+
+	struct thread *child_thread;
+
+	struct list_elem *elem = list_begin(&all_list);
+	for(; elem != list_tail(&all_list); elem = list_next(elem)) {
+		struct thread *temp_thread = list_entry(elem, struct thread, all_elem);
+		if(temp_thread->tid == child_tid) {
+			child_thread = temp_thread;
+			break;
+		}
+	}
+
+	while(true) {
+		bool inList = false;
+		struct list_elem *elem = list_begin(&all_list);
+		for(; elem != list_tail(&all_list); elem = list_next(elem)) {
+			struct thread *temp_thread = list_entry(elem, struct thread, all_elem);
+			if(temp_thread->tid == child_tid)
+				inList = true;
+		}
+		if(!inList)
+			break;
+	}
+
 	return -1;
 }
 

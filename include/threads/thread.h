@@ -5,6 +5,9 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "filesys/off_t.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -147,6 +150,7 @@ struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
+	int exit_status;
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
 
@@ -164,8 +168,9 @@ struct thread {
 	int nice;
 	int recent_cpu;
 	struct list_elem all_elem;
-	
 
+	struct file **fd_table;  // file discripter table
+	
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -228,6 +233,8 @@ void thread_set_nice(int);
 int thread_get_nice (void);
 int thread_get_load_avg (void);
 int thread_get_recent_cpu (void);
+
+struct list all_list;
 
 
 

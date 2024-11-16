@@ -29,7 +29,7 @@
    실행 준비는 되었지만 실제로 실행 중이지 않은 프로세스들이 포함됩니다. */
 static struct list ready_list;
 static struct list sleep_list;
-static struct list all_list;
+extern struct list all_list;
 
 /* 유휴(Idle) 스레드입니다. */
 static struct thread *idle_thread;
@@ -206,15 +206,17 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG; // 코드 세그먼트 선택자
 	t->tf.eflags = FLAG_IF; // 인터럽트 플래그
 
+	t->fd_table = palloc_get_page(PAL_ZERO);
+
 	/* 실행 큐에 추가 */
 	// printf("🔮 thread_create: 니 누기야???????? %s\n", t->name);
 	thread_unblock (t);
-	
+	thread_yield();
 	/*
 	 * 스레드가 새로 생성되어 우선 순위가 변동이 있을 수 있기 때문에 
 	 * 현재 실행 중인 스레드와 ready_list의 front를 비교 하는 함수 호출
 	 */ 
-	thread_test_preemption();
+	//thread_test_preemption();
 
 	return tid;
 }
@@ -637,6 +639,7 @@ static void do_schedule(int status) {
     while (!list_empty(&destruction_req)) {  // 파괴 요청 리스트가 비어있지 않다면 반복
         struct thread *victim =
             list_entry(list_pop_front(&destruction_req), struct thread, elem);
+		list_remove(&victim->all_elem);
         palloc_free_page(victim);  // 파괴된 스레드의 메모리 페이지를 해제
     }
 

@@ -1,4 +1,5 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -7,6 +8,11 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "threads/init.h"
+#include "lib/user/syscall.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "devices/input.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -19,6 +25,21 @@ void syscall_handler (struct intr_frame *);
  *
  * The syscall instruction works by reading the values from the the Model
  * Specific Register (MSR). For the details, see the manual. */
+
+void halt(void);
+void exit(int status);
+pid_t fork(const char *thread_name);
+int exec(const char *cmd_line);
+int wait(pid_t pid);
+bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
+int open(const char *file);
+int filesize(int fd);
+int read(int fd, void *buffer, unsigned size);
+int write(int fd, const void *buffer, unsigned size);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
 
 #define MSR_STAR 0xc0000081         /* Segment selector msr */
 #define MSR_LSTAR 0xc0000082        /* Long mode SYSCALL target */
@@ -41,6 +62,140 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
+	printf ("system call!: %d\n", f->R.rax);
+	switch(f->R.rax) {
+		case SYS_HALT: 
+			halt();
+		break;
+		case SYS_EXIT: 
+			exit(f->R.rdi);
+		break;
+		case SYS_FORK: 
+			f->R.rax = fork(f->R.rdi);
+		break;
+		case SYS_EXEC:
+			f->R.rax = exec(f->R.rdi);
+		break;
+		case SYS_WAIT:
+			f->R.rax = wait(f->R.rdi);
+		break;
+		case SYS_CREATE:
+			f->R.rax = create(f->R.rdi, f->R.rsi);
+		break;
+		case SYS_REMOVE:
+			f->R.rax = remove(f->R.rdi);
+		break;
+		case SYS_OPEN:
+			f->R.rax = open(f->R.rdi);
+		break;
+		case SYS_FILESIZE:
+			f->R.rax = filesize(f->R.rdi);
+		break;
+		case SYS_READ:
+			f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
+		break;
+		case SYS_WRITE:
+			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
+		break;
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+		break;
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+		break;
+		case SYS_CLOSE:
+			close(f->R.rdi);
+		break;
+	}
 	thread_exit ();
+}
+
+void halt(void) {
+	power_off();
+}
+
+void exit(int status) {
+	thread_current()->exit_status = status;
+	thread_exit();
+}
+
+pid_t fork(const char *thread_name) {
+	return process_create_initd(thread_name);
+}
+
+int exec(const char *cmd_line) {
+	char *copy = palloc_get_page(0);
+	strlcpy(copy, cmd_line, PGSIZE);
+	return process_exec(copy);
+}
+
+int wait(pid_t pid) {
+	return process_wait(pid);
+}
+
+bool create(const char *file, unsigned initial_size) {
+	return filesys_create(file, initial_size);
+}
+
+bool remove(const char *file) {
+	return filesys_remove(file);
+}
+
+int open(const char *file) {
+	struct file *open_file = filesys_open (file);
+	if (open_file == NULL) {
+		return -1;
+	}
+	
+	struct file **curr_fdt = thread_current()->fd_table;
+	int fd;
+	for(fd = 3; curr_fdt[fd] != 0; fd++);
+	curr_fdt[fd] = open_file;
+	return fd;
+}
+
+int filesize(int fd) {
+
+}
+
+int read(int fd, void *buffer, unsigned size) {
+	struct thread *curr = thread_current();
+	int ret;
+
+	if(fd == STDIN_FILENO) {
+		char* ptr = buffer;
+		for(int i = 0; i < size; i++)
+			*ptr++ = input_getc();
+		
+		ret = size;
+	}
+	ret = file_read(curr->fd_table[fd], buffer, size);
+
+	return ret;
+}
+
+int write(int fd, const void *buffer, unsigned size) {
+	struct thread *curr = thread_current();
+	int ret;
+	
+	if(fd == STDOUT_FILENO) {
+		putbuf(buffer, size);
+		ret = size;
+	}
+	else
+		ret = file_write(curr->fd_table[fd], buffer, size);
+
+	return ret;
+}
+
+void seek(int fd, unsigned position) {
+
+}
+
+unsigned tell(int fd) {
+
+}
+
+void close(int fd) {
+
 }
