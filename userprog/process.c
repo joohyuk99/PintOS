@@ -175,13 +175,9 @@ process_exec (void *f_name) {
 	char *argv[MAX_ARG];
 	char *argv_location[MAX_ARG];
 
-	argv[argc++] = f_name;
-	while(argv[argc++] = strstr(argv[argc - 1], " ")) {
-		*argv[argc] = '\0';
-		argv[argc]++;
-	}
-	argc--;
-	// printf("🛞   file name: !%s!, %d\n", argv[0], argc);
+	char *token, *save_ptr;
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
+		argv[argc++] = token;
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -284,7 +280,6 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
 }
 
