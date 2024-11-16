@@ -280,6 +280,10 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+
+	if(curr->running_file != NULL)
+		file_allow_write(curr->running_file);
+
 	process_cleanup ();
 }
 
@@ -401,6 +405,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* Open executable file. */
 	file = filesys_open (file_name);
+	file_deny_write(file);  // running file write deny
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;

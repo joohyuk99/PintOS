@@ -430,6 +430,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	/* mlfqs 구현 */
 	t->nice = NICE_DEFAULT;
 	t->recent_cpu = RECENT_CPU_DEFAULT;
+
+	/* project 2 */
+	t->running_file = NULL;
 	list_push_back(&all_list, &t->all_elem);
 }
 

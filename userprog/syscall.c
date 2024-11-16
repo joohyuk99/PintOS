@@ -116,7 +116,9 @@ void halt(void) {
 }
 
 void exit(int status) {
-	thread_current()->exit_status = status;
+	struct thread *curr = thread_current();
+	curr->exit_status = status;
+	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	thread_exit();
 }
 
@@ -128,8 +130,6 @@ int exec(const char *cmd_line) {
 	// char *copy = palloc_get_page(0);
 	// strlcpy(copy, cmd_line, PGSIZE);
 	// return process_exec(copy);
-	struct thread *curr = thread_current();
-	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	return process_exec(cmd_line);
 }
 
