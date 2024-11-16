@@ -170,6 +170,7 @@ struct thread {
 	struct list_elem all_elem;
 
 	struct file **fd_table;  // file discripter table
+	int last_fd;
 	struct file *running_file;
 	
 #ifdef USERPROG

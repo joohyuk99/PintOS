@@ -138,25 +138,50 @@ int wait(pid_t pid) {
 }
 
 bool create(const char *file, unsigned initial_size) {
+
 	if(file == NULL)
 		exit(-1);
+	else if(!is_user_vaddr(file))
+		exit(-1);
+	else if (pml4_get_page(thread_current()->pml4, file) == NULL)
+		exit(-1);
+
 	return filesys_create(file, initial_size);
 }
 
 bool remove(const char *file) {
+
+	if(file == NULL)
+		exit(-1);
+	else if(!is_user_vaddr(file))
+		exit(-1);
+	else if (pml4_get_page(thread_current()->pml4, file) == NULL)
+		exit(-1);
+
 	return filesys_remove(file);
 }
 
 int open(const char *file) {
+
+	if(file == NULL)
+		exit(-1);
+	else if(!is_user_vaddr(file))
+		exit(-1);
+	else if (pml4_get_page(thread_current()->pml4, file) == NULL)
+		exit(-1);
+
 	struct file *open_file = filesys_open (file);
 	if (open_file == NULL) {
 		return -1;
 	}
 	
-	struct file **curr_fdt = thread_current()->fd_table;
-	int fd;
-	for(fd = 3; curr_fdt[fd] != 0; fd++);
+	struct thread *curr = thread_current();
+	struct file **curr_fdt = curr->fd_table;
+	int fd = curr->last_fd + 1;
+	for(; curr_fdt[fd] != 0; fd++);
 	curr_fdt[fd] = open_file;
+	if(fd > curr->last_fd)
+		curr->last_fd = fd;
 	return fd;
 }
 

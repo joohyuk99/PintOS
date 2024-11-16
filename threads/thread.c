@@ -207,6 +207,7 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF; // 인터럽트 플래그
 
 	t->fd_table = palloc_get_page(PAL_ZERO);
+	t->last_fd = 2;
 
 	/* 실행 큐에 추가 */
 	// printf("🔮 thread_create: 니 누기야???????? %s\n", t->name);
