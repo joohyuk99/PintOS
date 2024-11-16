@@ -200,7 +200,13 @@ int read(int fd, void *buffer, unsigned size) {
 		
 		ret = size;
 	}
-	ret = file_read(curr->fd_table[fd], buffer, size);
+	else {
+
+		if(curr->fd_table[fd] == NULL)
+			exit(-1);
+
+		ret = file_read(curr->fd_table[fd], buffer, size);
+	}
 
 	return ret;
 }
@@ -213,8 +219,13 @@ int write(int fd, const void *buffer, unsigned size) {
 		putbuf(buffer, size);
 		ret = size;
 	}
-	else
+	else {
+
+		if(curr->fd_table[fd] == NULL)
+			exit(-1);
+
 		ret = file_write(curr->fd_table[fd], buffer, size);
+	}
 
 	return ret;
 }
