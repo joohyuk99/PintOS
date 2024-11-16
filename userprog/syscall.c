@@ -62,7 +62,7 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!: %d\n", f->R.rax);
+	// printf ("system call!: %d\n", f->R.rax);
 	switch(f->R.rax) {
 		case SYS_HALT: 
 			halt();
@@ -106,8 +106,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_CLOSE:
 			close(f->R.rdi);
 		break;
+		default:
+			thread_exit ();
 	}
-	thread_exit ();
 }
 
 void halt(void) {
@@ -120,13 +121,14 @@ void exit(int status) {
 }
 
 pid_t fork(const char *thread_name) {
-	return process_create_initd(thread_name);
+	return process_fork(thread_name, &thread_current()->tf);
 }
 
 int exec(const char *cmd_line) {
-	char *copy = palloc_get_page(0);
-	strlcpy(copy, cmd_line, PGSIZE);
-	return process_exec(copy);
+	// char *copy = palloc_get_page(0);
+	// strlcpy(copy, cmd_line, PGSIZE);
+	// return process_exec(copy);
+	return process_exec(cmd_line);
 }
 
 int wait(pid_t pid) {
@@ -189,13 +191,15 @@ int write(int fd, const void *buffer, unsigned size) {
 }
 
 void seek(int fd, unsigned position) {
-
+	file_seek(thread_current()->fd_table[fd], position);
 }
 
 unsigned tell(int fd) {
-
+	return file_tell(thread_current()->fd_table[fd]);
 }
 
 void close(int fd) {
-
+	struct thread *curr = thread_current();
+	file_close(curr->fd_table[fd]);
+	curr->fd_table[fd] = NULL;
 }

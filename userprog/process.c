@@ -50,8 +50,12 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *token, *last;
+	token = strtok_r(file_name, " ", &last);
+	tid = thread_create (token, PRI_DEFAULT, initd, fn_copy);
+
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	// tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -177,7 +181,7 @@ process_exec (void *f_name) {
 		argv[argc]++;
 	}
 	argc--;
-	printf("🛞   file name: !%s!, %d\n", argv[0], argc);
+	// printf("🛞   file name: !%s!, %d\n", argv[0], argc);
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -223,7 +227,7 @@ process_exec (void *f_name) {
 		return -1;
 
 	// debuging
-	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -280,7 +284,7 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-
+	printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 	process_cleanup ();
 }
 
