@@ -172,7 +172,8 @@ struct thread {
 	struct file **fd_table;  // file discripter table
 	int last_fd;
 	struct file *running_file;
-	
+	struct intr_frame parent_if;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */

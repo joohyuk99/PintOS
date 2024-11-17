@@ -71,6 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			exit(f->R.rdi);
 		break;
 		case SYS_FORK: 
+			thread_current()->parent_if = *f;
 			f->R.rax = fork(f->R.rdi);
 		break;
 		case SYS_EXEC:
@@ -123,7 +124,7 @@ void exit(int status) {
 }
 
 pid_t fork(const char *thread_name) {
-	return process_fork(thread_name, &thread_current()->tf);
+	return process_fork(thread_name, &thread_current()->parent_if);
 }
 
 int exec(const char *cmd_line) {
