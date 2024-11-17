@@ -186,12 +186,26 @@ int open(const char *file) {
 }
 
 int filesize(int fd) {
+	struct thread *curr = thread_current();
 
+	if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
+		exit(-1);
+		
+	struct file *f = curr->fd_table[fd];
+
+	return file_length(f);
 }
 
 int read(int fd, void *buffer, unsigned size) {
 	struct thread *curr = thread_current();
 	int ret;
+
+	if(buffer == NULL)
+		exit(-1);
+	else if(!is_user_vaddr(buffer))
+		exit(-1);
+	else if (pml4_get_page(thread_current()->pml4, buffer) == NULL)
+		exit(-1);
 
 	if(fd == STDIN_FILENO) {
 		char* ptr = buffer;
@@ -201,10 +215,8 @@ int read(int fd, void *buffer, unsigned size) {
 		ret = size;
 	}
 	else {
-
-		if(curr->fd_table[fd] == NULL)
+		if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 			exit(-1);
-
 		ret = file_read(curr->fd_table[fd], buffer, size);
 	}
 
@@ -215,13 +227,20 @@ int write(int fd, const void *buffer, unsigned size) {
 	struct thread *curr = thread_current();
 	int ret;
 	
+	if(buffer == NULL)
+		exit(-1);
+	else if(!is_user_vaddr(buffer))
+		exit(-1);
+	else if (pml4_get_page(thread_current()->pml4, buffer) == NULL)
+		exit(-1);
+
 	if(fd == STDOUT_FILENO) {
 		putbuf(buffer, size);
 		ret = size;
 	}
 	else {
 
-		if(curr->fd_table[fd] == NULL)
+		if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 			exit(-1);
 
 		ret = file_write(curr->fd_table[fd], buffer, size);
