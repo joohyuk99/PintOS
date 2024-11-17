@@ -434,7 +434,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	/* project 2 */
 	t->running_file = NULL;
+	t->parent_thread = NULL;
 	list_push_back(&all_list, &t->all_elem);
+	sema_init(&t->load_sema, 0);
+	sema_init(&t->wait_sema, 0);
+	sema_init(&t->exit_sema, 0);
 }
 
 /* 스케줄링할 다음 스레드를 선택하여 반환합니다.

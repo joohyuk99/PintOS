@@ -8,6 +8,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "filesys/off_t.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -173,6 +174,10 @@ struct thread {
 	int last_fd;
 	struct file *running_file;
 	struct intr_frame parent_if;
+	struct thread *parent_thread;
+	struct semaphore load_sema;
+	struct semaphore wait_sema;
+	struct semaphore exit_sema;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

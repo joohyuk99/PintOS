@@ -82,10 +82,10 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
 	struct thread *curr = thread_current();
 	memcpy(&curr->parent_if, if_, sizeof(struct intr_frame));
-// printf("🤦‍♂️ test\n");
+
 	tid_t child_tid = thread_create (name,
 			PRI_DEFAULT, __do_fork, thread_current ());
-	// printf("😂 new thread %d\n", child_tid);
+
 	return child_tid;
 }
 
@@ -273,19 +273,13 @@ process_wait (tid_t child_tid UNUSED) {
 		}
 	}
 
-	while(true) {
-		bool inList = false;
-		struct list_elem *elem = list_begin(&all_list);
-		for(; elem != list_tail(&all_list); elem = list_next(elem)) {
-			struct thread *temp_thread = list_entry(elem, struct thread, all_elem);
-			if(temp_thread->tid == child_tid)
-				inList = true;
-		}
-		if(!inList)
-			break;
-	}
+	sema_down(&child_thread->wait_sema);
 
-	return -1;
+	int exit_code = child_thread->exit_status;
+
+	sema_up(&child_thread->wait_sema);
+
+	return exit_code;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -301,6 +295,9 @@ process_exit (void) {
 		file_allow_write(curr->running_file);
 
 	process_cleanup ();
+
+	sema_up(&curr->wait_sema);
+	sema_down(&curr->exit_sema);
 }
 
 /* Free the current process's resources. */
