@@ -62,7 +62,7 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	// printf ("system call!: %d\n", f->R.rax);
+	// printf ("system call!: %d %d\n", f->R.rax, f->R.rdi);
 	switch(f->R.rax) {
 		case SYS_HALT: 
 			halt();
@@ -240,6 +240,10 @@ unsigned tell(int fd) {
 
 void close(int fd) {
 	struct thread *curr = thread_current();
+
+	if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
+		exit(-1);
+
 	file_close(curr->fd_table[fd]);
 	curr->fd_table[fd] = NULL;
 }
