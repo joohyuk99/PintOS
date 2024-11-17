@@ -39,6 +39,7 @@ test_main (void)
     msg ("child run");
 
     byte_cnt = read (handle, buffer + 20, sizeof sample - 21);
+    
     if (byte_cnt != sizeof sample - 21)
       fail ("read() returned %d instead of %zu", byte_cnt, sizeof sample - 21);
     else if (strcmp (sample, buffer)) 

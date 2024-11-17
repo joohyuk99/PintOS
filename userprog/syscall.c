@@ -218,6 +218,7 @@ int read(int fd, void *buffer, unsigned size) {
 	else {
 		if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 			exit(-1);
+		
 		ret = file_read(curr->fd_table[fd], buffer, size);
 	}
 

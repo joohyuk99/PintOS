@@ -169,6 +169,15 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 
+	for (int i = 3; i <= parent->last_fd; i++)
+	{
+		struct file *file = parent->fd_table[i];
+		if (file == NULL)
+			continue;
+		current->fd_table[i] = file_duplicate(file);
+	}
+	current->last_fd = parent->last_fd;
+
 	process_init ();
 
 	/* Finally, switch to the newly created process. */
