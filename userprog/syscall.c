@@ -138,10 +138,8 @@ int exec(const char *cmd_line) {
 		exit(-1);
 
 	char *copy = palloc_get_page(PAL_ZERO);
-	strlcpy(copy, cmd_line, PGSIZE);
+	strlcpy(copy, cmd_line, strlen(cmd_line) + 1);
 	return process_exec(copy);
-
-	// return process_exec(cmd_line);
 }
 
 int wait(pid_t pid) {

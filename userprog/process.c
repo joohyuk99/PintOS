@@ -169,6 +169,9 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 
+	for(int i = 0; i < 3; i++)
+		current->fd_table[i] = parent->fd_table[i];
+
 	for (int i = 3; i <= parent->last_fd; i++)
 	{
 		struct file *file = parent->fd_table[i];
@@ -271,7 +274,7 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 
-	struct thread *child_thread;
+	struct thread *child_thread = NULL;
 
 	struct list_elem *elem = list_begin(&all_list);
 	for(; elem != list_tail(&all_list); elem = list_next(elem)) {
@@ -281,6 +284,9 @@ process_wait (tid_t child_tid UNUSED) {
 			break;
 		}
 	}
+
+	if(child_thread == NULL)
+		return -1;
 
 	sema_down(&child_thread->wait_sema);
 
@@ -412,6 +418,9 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Returns true if successful, false otherwise. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
+// for (const char *p = file_name; *p != '\0'; p++) {
+// 	putchar(*p);
+// }
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
