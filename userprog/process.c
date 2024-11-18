@@ -292,7 +292,7 @@ process_wait (tid_t child_tid UNUSED) {
 
 	int exit_code = child_thread->exit_status;
 
-	sema_up(&child_thread->wait_sema);
+	sema_up(&child_thread->exit_sema);
 
 	return exit_code;
 }
