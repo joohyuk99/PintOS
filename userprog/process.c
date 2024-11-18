@@ -202,9 +202,20 @@ error:
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
-	char *file_name = f_name;
-	bool success;
+	char *file_name =  (char *)palloc_get_page(PAL_ZERO);
+	if (file_name == NULL) {
+		exit(-1);
+	}
 
+	strlcpy(file_name, (char *)f_name, strlen(f_name) + 1);
+	bool success;
+	/* [TODO] 프로그램의 인자를 파싱하여 스택에 적재해야함
+			-> 스택 포인터 조정, 인자 저장, argv 포인터 설정 필요 */
+	char *argv[128], *token, *save_ptr;
+	int argc = 0;
+	/* 받은 문자열 파싱 */
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
+		argv[argc++] = token;
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -215,17 +226,12 @@ process_exec (void *f_name) {
 
 	/* We first kill the current context */
 	process_cleanup ();
-
-	/* [TODO] 프로그램의 인자를 파싱하여 스택에 적재해야함
-			-> 스택 포인터 조정, 인자 저장, argv 포인터 설정 필요 */
-	char *argv[128], *token, *save_ptr;
-	int argc = 0;
-	/* 받은 문자열 파싱 */
-	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
-		argv[argc++] = token;
-
 	/* And then load the binary */
 	success = load (file_name, &_if);
+	if (!success) {
+		palloc_free_page (file_name);
+		exit(-1);
+	}
 	/* 파싱하고 남은 문자열 스택에 저장 */
 	argument_stack(argv, argc, &_if.rsp);
 	_if.R.rdi = argc;			    	// argc -> RDI.
@@ -234,8 +240,6 @@ process_exec (void *f_name) {
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);		/* 작업이 끝났으므로 동적할당한 file_name이 담긴 메모리 free */
-	if (!success)
-		return -1;
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -295,7 +299,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* [TODO] 자식 프로세스가 종료되면 그 상태 반환하고, 자식 프로세스의 자료구조를 정리하여 메모리 누수 방지 */
 	list_remove(&child->child_elem);
 	sema_up(&child->exit_sema);
-	/* 일단은 무한 루프를 통해 부모 프로세스가 종료되지 않도록 하기 */
+
 	return child->exit_status;
 }
 
@@ -446,7 +450,7 @@ load (const char *file_name, struct intr_frame *if_) {
 			|| ehdr.e_version != 1
 			|| ehdr.e_phentsize != sizeof (struct Phdr)
 			|| ehdr.e_phnum > 1024) {
-		printf ("load: %s: error loading executable\n", file_name);
+		printf ("load: %s: error loading\n", file_name);
 		goto done;
 	}
 

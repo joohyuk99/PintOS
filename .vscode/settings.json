@@ -6,6 +6,7 @@
         "file.h": "c",
         "filesys.h": "c",
         "process.h": "c",
-        "intrinsic.h": "c"
+        "intrinsic.h": "c",
+        "lib.h": "c"
     }
 }

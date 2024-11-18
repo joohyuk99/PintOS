@@ -27,7 +27,7 @@ void halt(void);
 void exit(int status);
 bool create(const char *file, unsigned initial_size);
 bool remove(const char *file);
-int exec(const char *addr);
+int exec(const char *cmd_line);
 int fork(const char *thread_name, struct intr_frame *_if);
 int wait(int pid);
 int open(const char *file);
@@ -137,20 +137,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
 
 
-int exec(const char *addr) {
-	addr_validation(addr);
-
-	char *addr_copy;
-	addr_copy = palloc_get_page(0);
-	if (addr_copy == NULL)
-		exit(-1);
-	strlcpy(addr_copy, addr, PGSIZE);
-
-	int pid = process_exec(addr_copy);
-	if (pid == -1)
+int exec(const char *cmd_line) {
+	addr_validation(cmd_line);
+	
+	if (process_exec((void *)cmd_line) < 0)
         exit(-1);
-    
-    return pid;
+	NOT_REACHED();
 }
 
 void halt(void) {
