@@ -13,6 +13,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+#include "threads/palloc.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -128,10 +129,19 @@ pid_t fork(const char *thread_name) {
 }
 
 int exec(const char *cmd_line) {
-	// char *copy = palloc_get_page(0);
-	// strlcpy(copy, cmd_line, PGSIZE);
-	// return process_exec(copy);
-	return process_exec(cmd_line);
+
+	if(cmd_line == NULL)
+		exit(-1);
+	else if(!is_user_vaddr(cmd_line))
+		exit(-1);
+	else if (pml4_get_page(thread_current()->pml4, cmd_line) == NULL)
+		exit(-1);
+
+	char *copy = palloc_get_page(PAL_ZERO);
+	strlcpy(copy, cmd_line, PGSIZE);
+	return process_exec(copy);
+
+	// return process_exec(cmd_line);
 }
 
 int wait(pid_t pid) {
