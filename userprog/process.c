@@ -309,6 +309,7 @@ process_exit (void) {
 
 	file_close(cur->running);
 	process_cleanup();
+	// palloc_free_multiple(cur->fd_table, FDT_PAGES);		//multi-oom 실패 사유
 
 	sema_up(&cur->wait_sema);
 	sema_down(&cur->exit_sema);

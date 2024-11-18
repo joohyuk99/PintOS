@@ -129,9 +129,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		default:
 			exit(-1);
 			break;
-		
-	printf ("system call!\n");
-	thread_exit ();
+	// printf ("system call!\n");
+	// thread_exit ();
 	}
 }
 
@@ -236,8 +235,10 @@ void close(int fd) {
 }
 
 int read(int fd, void *buffer, unsigned size) {
-    if (buffer == NULL || !is_user_vaddr(buffer))
-        exit(-1); // 유효하지 않은 메모리 접근 시 프로세스 종료
+    if (fd < 0 || fd == 1 || fd >= FDT_COUNT_LIMIT)		// fd값 검증
+        exit(-1);
+
+	addr_validation(buffer);					// buffer 주소 검증
 
     if (fd == 0) {
         unsigned i;
@@ -246,9 +247,6 @@ int read(int fd, void *buffer, unsigned size) {
             buf[i] = input_getc();
         return size;
     }
-
-    if (fd == 1)
-        return -1;
 
 	lock_acquire(&filesys_lock);
     struct file *file = process_get_file(fd);
@@ -259,13 +257,16 @@ int read(int fd, void *buffer, unsigned size) {
 
     int bytes_read = file_read(file, buffer, size);
 	lock_release(&filesys_lock);
+
     return bytes_read;
 }
 
 
 int write(int fd, void *buffer, unsigned size) {
-    if (buffer == NULL || !is_user_vaddr(buffer))
-        exit(-1); // 유효하지 않은 메모리 접근 시 프로세스 종료
+    if (fd < 0 || fd >= FDT_COUNT_LIMIT)		// fd값 검증
+        exit(-1);
+
+	addr_validation(buffer);					// buffer 주소 검증
     
     if (fd == 0) 
         return -1;
