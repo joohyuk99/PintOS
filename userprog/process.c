@@ -306,6 +306,8 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
+	// curr->parent_thread = NULL;
+
 	if(curr->running_file != NULL)
 		file_allow_write(curr->running_file);
 
@@ -313,6 +315,8 @@ process_exit (void) {
 
 	sema_up(&curr->wait_sema);
 	sema_down(&curr->exit_sema);
+
+	curr->tid = -1;
 }
 
 /* Free the current process's resources. */
