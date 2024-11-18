@@ -230,7 +230,7 @@ process_exec (void *f_name) {
 	argument_stack(argv, argc, &_if.rsp);
 	_if.R.rdi = argc;			    	// argc -> RDI.
 	_if.R.rsi = (char *)_if.rsp + 8;	// argv -> RSI. 유저 스택에 쌓은 argv의 주소를 가져와야 하므로 _if.rsp+8 
-	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)_if.rsp, true); // user stack을 16진수로 프린트
+	// hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)_if.rsp, true); // user stack을 16진수로 프린트
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);		/* 작업이 끝났으므로 동적할당한 file_name이 담긴 메모리 free */
@@ -306,7 +306,7 @@ process_exit (void) {
 	/* [TODO] 프로세스 종료 메세지 구현, 프로세스의 리소스를 정리하는 코드 추가 필요 */
 	for (int i = 2; i < FDT_COUNT_LIMIT; i++) 
 		close(i);
-	palloc_free_page(cur->running);
+
 	file_close(cur->running);
 	process_cleanup();
 

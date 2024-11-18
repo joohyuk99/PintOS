@@ -19,7 +19,7 @@
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
-void addr_validation(const char addr);
+void addr_validation(const void *addr);
 struct file *process_get_file (int fd);
 void process_close_file(int fd);
 
@@ -65,12 +65,11 @@ syscall_init (void) {
 	lock_init(&filesys_lock);
 }
 
-void addr_validation(const char addr) {
-	struct thread *cur = thread_current ();
-    if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(cur->pml4, addr) == NULL) 
-        exit(-1);		
+void addr_validation(const void *addr) {
+    struct thread *cur = thread_current ();
+    if (addr == NULL || !is_user_vaddr(addr) || pml4_get_page(cur->pml4, addr) == NULL) 
+        exit(-1);        
 }
-
 void process_close_file(int fd)
 {
     struct thread *cur = thread_current();
@@ -148,8 +147,11 @@ int exec(const char *addr) {
 		exit(-1);
 	strlcpy(addr_copy, addr, PGSIZE);
 
-	if (process_exec(addr) == -1)
-		exit(-1);
+	int pid = process_exec(addr_copy);
+	if (pid == -1)
+        exit(-1);
+    
+    return pid;
 }
 
 void halt(void) {
@@ -184,12 +186,16 @@ int wait(int pid) {
 
 int open(const char *file) {
 	addr_validation(file);
+	lock_acquire(&filesys_lock);
 	struct file *file_open = filesys_open(file);
-	if (file_open == NULL)
+	if (file_open == NULL) {
+		lock_release(&filesys_lock);
 		return -1;
+	}
 	int fd = process_add_file(file_open);
 	if (fd == -1) 
 		file_close(file_open);
+	lock_release(&filesys_lock);
 	return fd;
 }
 
@@ -230,47 +236,49 @@ void close(int fd) {
 }
 
 int read(int fd, void *buffer, unsigned size) {
-	if (buffer == NULL || is_user_vaddr(buffer))
-		return -1;
+    if (buffer == NULL || !is_user_vaddr(buffer))
+        exit(-1); // 유효하지 않은 메모리 접근 시 프로세스 종료
 
-	if (fd == 0) {
-		unsigned i;
-		char *buf = (char *)buffer;
-		for (i = 0; i < size; i ++) 
-			buf[i] = input_getc();
-		return size;
+    if (fd == 0) {
+        unsigned i;
+        char *buf = (char *)buffer;
+        for (i = 0; i < size; i++) 
+            buf[i] = input_getc();
+        return size;
+    }
+
+    if (fd == 1)
+        return -1;
+
+	lock_acquire(&filesys_lock);
+    struct file *file = process_get_file(fd);
+    if (file == NULL) {
+		lock_release(&filesys_lock);
+        return -1;
 	}
 
-	if (fd == 1)
-		return -1;
-	struct file *file = file_read(file, buffer, size);
-	if (file == NULL)
-		return -1;
-
-	int bytes_read = file_read(file, buffer, size);
-	if (bytes_read < 0)
-		return -1;
-	return bytes_read;
+    int bytes_read = file_read(file, buffer, size);
+	lock_release(&filesys_lock);
+    return bytes_read;
 }
 
+
 int write(int fd, void *buffer, unsigned size) {
-	if (buffer == NULL || is_user_vaddr(buffer))
-		return -1;
-	
-	if (fd == 0) 
-		return -1;
+    if (buffer == NULL || !is_user_vaddr(buffer))
+        exit(-1); // 유효하지 않은 메모리 접근 시 프로세스 종료
+    
+    if (fd == 0) 
+        return -1;
 
-	if (fd == 1) {
-		putbuf(buffer, size);
-		return size;
-	}
+    if (fd == 1) {
+        putbuf(buffer, size);
+        return size;
+    }
 
-	struct file *file = process_get_file(fd);
-	if (file == NULL)
-		return -1;
-	
-	int bytes_write = file_write(file, buffer, size);
-	if (bytes_write < 0)
-		return -1;
-	return bytes_write;
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return -1;
+    
+    int bytes_write = file_write(file, buffer, size);
+    return bytes_write;
 }
