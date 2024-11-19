@@ -95,6 +95,11 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct thread *child = get_child_process(pid);
 	sema_down(&child->load_sema);
 
+	if (child->exit_status == TID_ERROR) {
+		sema_up(&child->exit_sema);
+		return TID_ERROR;
+	}
+
 	return pid;
 }
 
@@ -194,8 +199,9 @@ __do_fork (void *aux) {
 	if (succ)
 		do_iret (&if_);
 error:
+	succ = false;
 	sema_up(&current->load_sema);
-	thread_exit ();
+	exit(-1);
 }
 
 /* Switch the current execution context to the f_name.
@@ -308,12 +314,14 @@ void
 process_exit (void) {
 	struct thread *cur = thread_current ();
 	/* [TODO] 프로세스 종료 메세지 구현, 프로세스의 리소스를 정리하는 코드 추가 필요 */
-	for (int i = 2; i < FDT_COUNT_LIMIT; i++) 
-		close(i);
+	for (int i = 2; i < FDT_COUNT_LIMIT; i++) {
+		if (cur->fd_table[i] != NULL)
+			close(i);
+	}
 
+	palloc_free_multiple(cur->fd_table, FDT_PAGES);		//multi-oom 실패 사유
 	file_close(cur->running);
 	process_cleanup();
-	// palloc_free_multiple(cur->fd_table, FDT_PAGES);		//multi-oom 실패 사유
 
 	sema_up(&cur->wait_sema);
 	sema_down(&cur->exit_sema);
