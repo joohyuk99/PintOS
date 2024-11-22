@@ -188,6 +188,7 @@ int open(const char *file) {
 		file_close(file_open);
 	lock_release(&filesys_lock);
 	return fd;
+	// return -1;
 }
 
 int filesize(int fd) {

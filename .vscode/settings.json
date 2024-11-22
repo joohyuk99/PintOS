@@ -8,6 +8,7 @@
         "process.h": "c",
         "intrinsic.h": "c",
         "lib.h": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "syscall.h": "c"
     }
 }

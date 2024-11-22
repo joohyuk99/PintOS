@@ -78,6 +78,19 @@ initd (void *f_name) {
 	NOT_REACHED ();
 }
 
+int process_add_file(struct file *f) {
+	struct thread *cur = thread_current();
+	struct file **fd_table = cur->fd_table;
+
+	while (cur->next_fd < FDT_COUNT_LIMIT && fd_table[cur->next_fd])
+		cur->next_fd ++;
+	if (cur->next_fd >= FDT_COUNT_LIMIT)
+		return -1;
+	fd_table[cur->next_fd] = f;
+
+	return cur->next_fd;
+}
+
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
 tid_t
@@ -660,19 +673,6 @@ setup_stack (struct intr_frame *if_) {
 			palloc_free_page (kpage);
 	}
 	return success;
-}
-
-int process_add_file(struct file *f) {
-	struct thread *cur = thread_current();
-	struct file **fd_table = cur->fd_table;
-
-	while (cur->next_fd < FDT_COUNT_LIMIT && fd_table[cur->next_fd])
-		cur->next_fd ++;
-	if (cur->next_fd >= FDT_COUNT_LIMIT)
-		return -1;
-	fd_table[cur->next_fd] = f;
-
-	return cur->next_fd;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
