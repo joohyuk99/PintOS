@@ -9,6 +9,7 @@
         "intrinsic.h": "c",
         "lib.h": "c",
         "*.inc": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "uninit.h": "c"
     }
 }

@@ -38,6 +38,7 @@ struct page_operations;
 struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
+#define STACK_LIMIT (USER_STACK - (1 << 20))  // 1MB limit
 
 /* The representation of "page".
  * This is kind of "parent class", which has four "child class"es, which are
@@ -50,6 +51,7 @@ struct page {
 
 	/* Your implementation */
 	struct hash_elem elem;  // for supplemental_page_table
+	bool accessible;
 	bool writable;
 
 	/* Per-type data are binded into the union.
@@ -122,6 +124,8 @@ bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
 void hash_destructor(struct hash_elem *e, void *aux);
 
 // for frame table
+static bool vm_copy_claim_page(struct supplemental_page_table *dst, void *va, void *kva, bool writable);
 static struct list frame_table;
+static struct lock frame_lock;
 
 #endif  /* VM_VM_H */

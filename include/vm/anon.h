@@ -1,10 +1,14 @@
 #ifndef VM_ANON_H
 #define VM_ANON_H
 #include "vm/vm.h"
+#include "threads/vaddr.h"
 struct page;
 enum vm_type;
 
+#define SECTOR_SIZE (PGSIZE / DISK_SECTOR_SIZE)
+
 struct anon_page {
+    size_t sector;
 };
 
 void vm_anon_init (void);

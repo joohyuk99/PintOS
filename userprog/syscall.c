@@ -16,6 +16,8 @@
 #include "filesys/filesys.h"
 #include "userprog/process.h"
 
+#include "vm/file.h"
+
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -36,6 +38,10 @@ unsigned tell(int fd);
 void close(int fd);
 int read(int fd, void *buffer, unsigned size);
 int write(int fd, void *buffer, unsigned size);
+
+void *mmap(void *addr, size_t length, int writable, int fd, off_t offset);
+void munmap(void *addr);
+void check_valid_buffer(void *buffer, size_t size, void *rsp, bool writable);
 
 /* System call.
  *
@@ -92,6 +98,11 @@ void process_close_file(int fd)
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
+
+#ifdef VM
+	thread_current()->stack_pointer = f->rsp;
+#endif
+
 	switch (f->R.rax) {
 		case SYS_HALT:
 			halt();
@@ -130,10 +141,18 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			close(f->R.rdi);
 			break;
 		case SYS_READ:
+			check_valid_buffer(f->R.rsi, f->R.rdx, f->rsp, true);
 	        f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;
 		case SYS_WRITE:
+			check_valid_buffer(f->R.rsi, f->R.rdx, f->rsp, false);
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
+			break;
+		case SYS_MMAP:
+			f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+			break;
+		case SYS_MUNMAP:
+			munmap(f->R.rdi);
 			break;
 		default:
 			exit(-1);
@@ -142,9 +161,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	// thread_exit ();
 	}
 }
-
-
-
 
 int exec(const char *cmd_line) {
 	addr_validation(cmd_line);
@@ -168,12 +184,18 @@ void exit(int status) {
 
 bool create(const char *file, unsigned initial_size) {
 	addr_validation(file);
-	return filesys_create(file, initial_size);		// 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
+	lock_acquire(&filesys_lock);
+	bool ret = filesys_create(file, initial_size);		// 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
+	lock_release(&filesys_lock);
+	return ret;
 }
 
 bool remove(const char *file) {
 	addr_validation(file);
-	return filesys_remove(file);					// 파일 제거 성공 시 true, 실패 시 false
+	lock_acquire(&filesys_lock);
+	bool ret = filesys_remove(file);					// 파일 제거 성공 시 true, 실패 시 false
+	lock_release(&filesys_lock);
+	return ret;
 }
 
 int fork(const char *thread_name, struct intr_frame *_if) {
@@ -284,4 +306,48 @@ int write(int fd, void *buffer, unsigned size) {
     
     int bytes_write = file_write(file, buffer, size);
     return bytes_write;
+}
+
+/* Project 3 */
+void *mmap(void *addr, size_t length, int writable, int fd, off_t offset) {
+
+	if(!addr || pg_round_down(addr) != addr)
+		return NULL;
+	
+	if(is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length))
+		return NULL;
+	
+	if(offset != pg_round_down(offset) || offset % PGSIZE != 0)
+		return NULL;
+	
+	if(spt_find_page(&thread_current()->spt, addr))
+		return NULL;
+
+	if(fd == STDIN_FILENO || fd == STDOUT_FILENO)
+		return NULL;
+
+	struct file *file = process_get_file(fd);
+
+	if(file == NULL)
+		return NULL;
+
+	if(file_length(file) == 0 || (long)length <= 0)
+		return NULL;
+	
+	return do_mmap(addr, length, writable, file, offset);
+}
+
+void munmap(void *addr) {
+	do_munmap(addr);
+}
+
+void check_valid_buffer(void *buffer, size_t size, void *rsp, bool writable) {
+    for (size_t i = 0; i < size; i++) {
+        /* buffer가 spt에 존재하는지 검사 */
+        struct page *page = addr_validation(buffer + i);
+        if (page == NULL)
+            exit(-1);
+        if (writable == true && page->writable == false)
+            exit(-1);
+    }
 }

@@ -14,7 +14,10 @@ struct thread *get_child_process(int pid);
 
 int process_add_file(struct file *f);
 
-/* Project 3: Anonymous page */
+/* Project 3 */
+#ifdef VM
+bool lazy_load_segment(struct page *page, void *aux);
+#endif
 
 // structure for management file-backed page
 struct container {
