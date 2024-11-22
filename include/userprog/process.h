@@ -14,4 +14,13 @@ struct thread *get_child_process(int pid);
 
 int process_add_file(struct file *f);
 
+/* Project 3: Anonymous page */
+
+// structure for management file-backed page
+struct container {
+    struct file *file;
+    off_t offset;
+    size_t page_read_bytes;
+};
+
 #endif /* userprog/process.h */
