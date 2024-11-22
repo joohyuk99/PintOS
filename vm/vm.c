@@ -35,7 +35,6 @@ vm_init (void) {
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
 	list_init(&frame_table);
-	lock_init(&frame_lock);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -178,16 +177,14 @@ vm_get_frame (void) {
 	struct frame *frame = (struct frame*)malloc(sizeof(struct frame));
 	frame->kva = palloc_get_page(PAL_USER);  // allocate virtual memory
 
-	if(frame->kva == NULL) {
+	if(frame->kva == NULL)
 		frame = vm_evict_frame();  // swap out
-		frame->page = NULL;  // unlink with virtual memory
-		return frame;
-	}
 	
-	frame->page = NULL;
-	// if allocate success, add frame into frame table
-	list_push_back(&frame_table, &frame->elem);
+	else
+		// if allocate success, add frame into frame table
+		list_push_back(&frame_table, &frame->elem);
 
+	frame->page = NULL;
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	return frame;
@@ -369,9 +366,7 @@ struct page *page = spt_find_page(dst, va);
     frame->page = page;
     page->frame = frame;
     frame->kva = kva;
-    lock_acquire(&frame_lock);
     list_push_back(&frame_table, &frame->elem);
-    lock_release(&frame_lock);
     if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, 0))
         return false;
     return swap_in(page, frame->kva);

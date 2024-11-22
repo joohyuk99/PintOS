@@ -126,6 +126,5 @@ void hash_destructor(struct hash_elem *e, void *aux);
 // for frame table
 static bool vm_copy_claim_page(struct supplemental_page_table *dst, void *va, void *kva, bool writable);
 static struct list frame_table;
-static struct lock frame_lock;
 
 #endif  /* VM_VM_H */
