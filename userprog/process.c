@@ -245,6 +245,11 @@ process_exec (void *f_name) {
 
 	/* We first kill the current context */
 	process_cleanup ();
+
+#ifdef VM
+	supplemental_page_table_init(&thread_current()->spt);
+#endif
+
 	/* And then load the binary */
 	success = load (file_name, &_if);
 	if (!success) {
@@ -431,7 +436,7 @@ struct ELF64_PHDR {
 #define ELF ELF64_hdr
 #define Phdr ELF64_PHDR
 
-static bool setup_stack (struct intr_frame *if_);
+bool setup_stack (struct intr_frame *if_);
 static bool validate_segment (const struct Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
@@ -657,7 +662,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 }
 
 /* Create a minimal stack by mapping a zeroed page at the USER_STACK */
-static bool
+bool
 setup_stack (struct intr_frame *if_) {
 	uint8_t *kpage;
 	bool success = false;
@@ -703,6 +708,10 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+
+	if(page == NULL)
+		return false;
+
 	struct container *container = aux;
 	struct file *file = container->file;
 	off_t offset = container->offset;
@@ -771,7 +780,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 }
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
-static bool
+bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);

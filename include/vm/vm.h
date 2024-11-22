@@ -119,7 +119,7 @@ enum vm_type page_get_type (struct page *page);
 /* Project 2 */
 uint64_t hash_func(const struct hash_elem *e, void *aux);
 bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
-void action_func(struct hash_elem *e, void *aux);
+void hash_destructor(struct hash_elem *e, void *aux);
 
 // for frame table
 static struct list frame_table;

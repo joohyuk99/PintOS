@@ -16,8 +16,9 @@ bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux) 
 	return pa->va < pb->va;
 }
 
-void action_func(struct hash_elem *e, void *aux) {
-
+void hash_destructor(struct hash_elem *e, void *aux) {
+	const struct page *p = hash_entry(e, struct page, elem);
+	free(p);
 }
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
@@ -32,6 +33,7 @@ vm_init (void) {
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+	list_init(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -201,12 +203,26 @@ vm_handle_wp (struct page *page UNUSED) {
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
-	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
-	struct page *page = NULL;
+
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 
-	return vm_do_claim_page (page);
+	struct supplemental_page_table *spt = &thread_current()->spt;
+	struct page *page = NULL;
+
+	if(addr == NULL || is_kernel_vaddr(addr))
+		return false;
+	
+	if(not_present) {
+		page = spt_find_page(spt, addr);
+		if(page == NULL)
+			return false;
+		if(write == 1 && page->writable == 0)
+			return false;
+		return vm_do_claim_page(page);
+	}
+
+	return false;
 }
 
 /* Free the page.
@@ -251,13 +267,59 @@ vm_do_claim_page (struct page *page) {
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 	hash_init(&spt->spt_hash, hash_func, less_func, NULL);
-	list_init(&frame_table);
 }
 
 /* Copy supplemental page table from src to dst */
+// for fork system call
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	
+	struct hash_iterator *iter;
+	struct page *src_page, *dst_page;
+	enum vm_type type;
+	void *upage;
+	bool writable;
+
+	hash_first(iter, &src->spt_hash);
+	for(; iter != NULL; hash_next(iter)) {
+		src_page = hash_entry(hash_cur(iter), struct page, elem);
+		type = src_page->operations->type;
+		upage = src_page->va;
+		writable = src_page->writable;
+
+		if(type == VM_UNINIT) {  // if page is not yet init
+			if(!vm_alloc_page_with_initializer(page_get_type(src_page),
+					src_page->va, src_page->writable, src_page->uninit.init, src_page->uninit.aux))
+				return false;
+		}
+
+		else if(type == VM_FILE) {  // if page is file
+			if(!vm_alloc_page_with_initializer(type, upage, writable, NULL, &src_page->file))
+				return false;
+			
+			dst_page = spt_find_page(dst, upage);  // copy data (memory->VM page)
+			if(!file_backed_initializer(dst_page, type, NULL))
+				return false;
+			
+			dst_page->frame = src_page->frame;
+			if(!pml4_set_page(thread_current()->pml4, dst_page->va, src_page->frame->kva, src_page->writable))
+				return false;
+		}
+
+		else if(type == VM_ANON) {  // if page is annonymous page
+			if(!vm_alloc_page(type, upage, writable))  // allocate and init page
+				return false;
+			
+			// if(!vm_copy_claim_page(dst, upage, src_page->frame->kva, writable))
+			// 	return false;
+		}
+
+		else
+			return false;
+	}
+
+	return true;
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -265,4 +327,15 @@ void
 supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+
+	// struct hash_interator *iter;
+	// struct page *page = NULL;
+	// hash_first(iter, &spt->spt_hash);
+	// for(; iter != NULL; iter = hash_next(iter)) {
+	// 	page = hash_entry(hash_cur(iter), struct page, elem);
+	// 	if(page->operations->type == VM_FILE)
+	// 		do_munmap(page->va);
+	// }
+
+	hash_destroy(&spt->spt_hash, hash_destructor);
 }

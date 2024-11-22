@@ -19,7 +19,6 @@
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
-void addr_validation(const void *addr);
 struct file *process_get_file (int fd);
 void process_close_file(int fd);
 
@@ -65,11 +64,21 @@ syscall_init (void) {
 	lock_init(&filesys_lock);
 }
 
+#ifndef VM
 void addr_validation(const void *addr) {
     struct thread *cur = thread_current ();
     if (addr == NULL || !is_user_vaddr(addr) || pml4_get_page(cur->pml4, addr) == NULL) 
         exit(-1);        
 }
+#else
+struct page* addr_validation(const void *addr) {
+	struct thread *cur = thread_current();
+	if(addr == NULL || is_kernel_vaddr(addr))
+		exit(-1);
+	return spt_find_page(&cur->spt, addr);
+}
+#endif
+
 void process_close_file(int fd)
 {
     struct thread *cur = thread_current();
