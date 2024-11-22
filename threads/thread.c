@@ -68,6 +68,7 @@ static tid_t allocate_tid (void);
 
 /* T가 유효한 스레드를 가리키는 것처럼 보이면 true를 반환합니다. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
+// #define is_thread(t) ((t) != NULL)
 
 /* 각 스레드는 독립적인 페이지에 위치 (스택은 다른 스레드와 공유되지 않고 고유한 페이지에 배정)
 	자신만의 페이지를 가짐

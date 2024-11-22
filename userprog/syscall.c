@@ -197,7 +197,7 @@ int open(const char *file) {
 int filesize(int fd) {
 	struct thread *curr = thread_current();
 
-	if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
+	if(fd < 2 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 		exit(-1);
 		
 	struct file *f = curr->fd_table[fd];
@@ -224,7 +224,7 @@ int read(int fd, void *buffer, unsigned size) {
 		ret = size;
 	}
 	else {
-		if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
+		if(fd < 2 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 			exit(-1);
 		
 		ret = file_read(curr->fd_table[fd], buffer, size);
@@ -250,7 +250,7 @@ int write(int fd, const void *buffer, unsigned size) {
 	}
 	else {
 
-		if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
+		if(fd < 2 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 			exit(-1);
 
 		ret = file_write(curr->fd_table[fd], buffer, size);
@@ -270,7 +270,7 @@ unsigned tell(int fd) {
 void close(int fd) {
 	struct thread *curr = thread_current();
 
-	if(fd < 3 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
+	if(fd < 2 || curr->last_fd < fd || curr->fd_table[fd] == NULL)
 		exit(-1);
 
 	file_close(curr->fd_table[fd]);

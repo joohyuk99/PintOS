@@ -218,7 +218,8 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
-	success = load (argv[0], &_if);
+	printf("process exec: %s\n", file_name);
+	success = load (file_name, &_if);
 
 	for(int i = argc - 1; i >= 0; i--) {
 		_if.rsp -= strlen(argv[i]) + 1;
@@ -422,6 +423,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Returns true if successful, false otherwise. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
+	printf("load: %s\n", file_name);
 // for (const char *p = file_name; *p != '\0'; p++) {
 // 	putchar(*p);
 // }
