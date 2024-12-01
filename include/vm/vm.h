@@ -59,7 +59,9 @@ struct page {
 	union {
 		struct uninit_page uninit;
 		struct anon_page anon;
+#ifdef VM
 		struct file_page file;
+#endif
 #ifdef EFILESYS
 		struct page_cache page_cache;
 #endif

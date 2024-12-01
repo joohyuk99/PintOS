@@ -20,6 +20,7 @@ void hash_destructor(struct hash_elem *e, void *aux) {
 	const struct page *p = hash_entry(e, struct page, elem);
 	destroy(p);
 	free(p);
+	p = NULL;
 }
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
@@ -75,8 +76,6 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 		/* TODO: Insert the page into the spt. */
 		struct page *page = (struct page*)malloc(sizeof(struct page));
-		if(page == NULL)
-			goto err;
 
 		typedef bool (*initializerFunc)(struct page*, enum vm_type, void *);
 		initializerFunc initializer = NULL;
@@ -94,8 +93,6 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		page->writable = writable;
 		return spt_insert_page(spt, page);
 	}
-err:
-	return false;
 }
 
 /* Find VA from spt and return page. On error, return NULL. */
@@ -104,9 +101,10 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 
 	/* TODO: Fill this function. */
-	struct page page;
-	page.va = pg_round_down(va);
-	struct hash_elem *e = hash_find(&spt->spt_hash, &page.elem);
+	struct page *page = (struct page*)malloc(sizeof(struct page));
+	page->va = pg_round_down(va);
+	struct hash_elem *e = hash_find(&spt->spt_hash, &page->elem);
+	free(page);
 
 	if(e != NULL)
 		return hash_entry(e, struct page, elem);
@@ -255,6 +253,7 @@ void
 vm_dealloc_page (struct page *page) {
 	destroy (page);
 	free (page);
+	page = NULL;
 }
 
 /* Claim the page that allocate on VA. */
@@ -300,26 +299,29 @@ bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
 	
-	struct hash_iterator *iter;
+	struct hash_iterator iter;
 	struct page *src_page, *dst_page;
 	enum vm_type type;
 	void *upage;
 	bool writable;
 
-	hash_first(iter, &src->spt_hash);
-	for(; iter != NULL; hash_next(iter)) {
-		src_page = hash_entry(hash_cur(iter), struct page, elem);
+	hash_first(&iter, &src->spt_hash);
+	while(hash_next(&iter)) {
+
+		src_page = hash_entry(hash_cur(&iter), struct page, elem);
 		type = src_page->operations->type;
 		upage = src_page->va;
 		writable = src_page->writable;
 
 		if(type == VM_UNINIT) {  // if page is not yet init
+// printf("1\n\n");
 			if(!vm_alloc_page_with_initializer(page_get_type(src_page),
 					src_page->va, src_page->writable, src_page->uninit.init, src_page->uninit.aux))
 				return false;
 		}
 
 		else if(type == VM_FILE) {  // if page is file
+// printf("2\n\n");
 			if(!vm_alloc_page_with_initializer(type, upage, writable, NULL, &src_page->file))
 				return false;
 			
@@ -333,6 +335,7 @@ supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		}
 
 		else if(type == VM_ANON) {  // if page is annonymous page
+// printf("3\n\n");
 			if(!vm_alloc_page(type, upage, writable))  // allocate and init page
 				return false;
 			
@@ -357,8 +360,9 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 }
 
 static bool vm_copy_claim_page(struct supplemental_page_table *dst, void *va, void *kva, bool writable) {
-struct page *page = spt_find_page(dst, va);
-    if (page == NULL)
+
+	struct page *page = spt_find_page(dst, va);
+    if (!page)
         return false;
     struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
     /* Set links */
@@ -366,8 +370,13 @@ struct page *page = spt_find_page(dst, va);
     frame->page = page;
     page->frame = frame;
     frame->kva = kva;
+	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, false)) {
+		free(frame);
+		return false;
+	}
+        
+		
     list_push_back(&frame_table, &frame->elem);
-    if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, 0))
-        return false;
+    
     return swap_in(page, frame->kva);
 }

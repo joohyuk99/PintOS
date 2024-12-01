@@ -199,7 +199,11 @@ bool remove(const char *file) {
 }
 
 int fork(const char *thread_name, struct intr_frame *_if) {
-	return process_fork(thread_name, _if);
+	// printf("parent %d\n\n", thread_current()->tid);
+	addr_validation(thread_name);
+	int t = process_fork(thread_name, _if);
+	// printf("current %d %d\n\n", thread_current()->tid, t);
+	return t;
 }
 
 int wait(int pid) {
@@ -310,7 +314,7 @@ int write(int fd, void *buffer, unsigned size) {
 
 /* Project 3 */
 void *mmap(void *addr, size_t length, int writable, int fd, off_t offset) {
-
+#ifdef VM
 	if(!addr || pg_round_down(addr) != addr)
 		return NULL;
 	
@@ -335,13 +339,18 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset) {
 		return NULL;
 	
 	return do_mmap(addr, length, writable, file, offset);
+#endif
 }
 
 void munmap(void *addr) {
+#ifdef VM
 	do_munmap(addr);
+#endif
 }
 
 void check_valid_buffer(void *buffer, size_t size, void *rsp, bool writable) {
+
+#ifdef VM
     for (size_t i = 0; i < size; i++) {
         /* buffer가 spt에 존재하는지 검사 */
         struct page *page = addr_validation(buffer + i);
@@ -350,4 +359,7 @@ void check_valid_buffer(void *buffer, size_t size, void *rsp, bool writable) {
         if (writable == true && page->writable == false)
             exit(-1);
     }
+#else
+	return NULL;
+#endif
 }

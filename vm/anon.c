@@ -36,6 +36,9 @@ vm_anon_init (void) {
 bool
 anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* Set up the handler */
+	struct uninit_page *uninit = &page->uninit;
+    memset(uninit, 0, sizeof(struct uninit_page));
+
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
@@ -48,10 +51,11 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 anon_swap_in (struct page *page, void *kva) {
 	struct anon_page *anon_page = &page->anon;
-	size_t sector = anon_page->sector;
-	size_t slot = sector / SECTOR_SIZE;
+	size_t slot = anon_page->sector;
+	size_t sector = slot * (PGSIZE / DISK_SECTOR_SIZE);
+	
 
-	if(sector == BITMAP_ERROR || !bitmap_test(swap_table, slot))
+	if(slot == BITMAP_ERROR || !bitmap_test(swap_table, slot))
 		return false;
 
 	bitmap_set(swap_table, slot, false);
@@ -94,10 +98,14 @@ anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
 
 	if(anon_page->sector != BITMAP_ERROR)
-		bitmap_reset(swap_table, page->anon.sector);
+		bitmap_reset(swap_table, anon_page->sector);
 
 	if(page->frame != NULL) {
 		list_remove(&page->frame->elem);
+		page->frame->page = NULL;
 		free(page->frame);
+		page->frame = NULL;
 	}
+
+	pml4_clear_page(thread_current()->pml4, page->va);
 }

@@ -26,6 +26,47 @@
 
 #include "threads/synch.h"
 
+
+void dump_page_table(uint64_t *table) {
+    printf("Dumping page table at %p:\n", table);
+    if (!is_user_vaddr(table)) {
+        printf("  Invalid page table address.\n");
+        return;
+    }
+    for (int i = 0; i < 512; i++) {
+        if (table[i] != 0) {
+            uint64_t physical_address = table[i] & 0x000FFFFFFFFFF000;
+            uint64_t flags = table[i] & 0xFFF;
+            void *logical_address = ptov(physical_address);
+            if (!is_user_vaddr(logical_address)) {
+                printf("  Entry %d: Invalid logical address for Physical Address = %p\n", i, (void *)physical_address);
+                continue;
+            }
+            printf("  Entry %d: Physical Address = %p, Logical Address = %p, Flags = 0x%03lx\n", 
+                   i, (void *)physical_address, logical_address, flags);
+        }
+    }
+}
+
+
+void dump_pml4(uint64_t *pml4) {
+    printf("🛞 Dumping pml4 at %p:\n", pml4);
+    for (int i = 0; i < 512; i++) {
+        if (pml4[i] != 0) {
+            uint64_t physical_address = pml4[i] & 0x000FFFFFFFFFF000; // 물리 주소 추출
+            uint64_t flags = pml4[i] & 0xFFF; // 플래그 추출
+            void *logical_address = ptov(physical_address); // 물리 주소 -> 논리 주소 변환
+            printf("PML4 Entry %d: Physical Address = %p, Logical Address = %p, Flags = 0x%03lx\n", 
+                   i, (void *)physical_address, logical_address, flags);
+            
+            // 하위 페이지 테이블 덤프
+            dump_page_table((uint64_t *)logical_address);
+        }
+    }
+	printf("\n\n");
+}
+
+
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
@@ -98,10 +139,14 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* 현재 스레드를 복제하여 새로운 스레드를 생성
 	 * [TODO] 부모의 intr_frame를 자식에게 전달하기 위해 thread_create에 parent_if를 전달할 수 있도록 수정 필요 */
 	struct thread *cur = thread_current();
+	// struct intr_frame *f = (pg_round_up(rrsp()) - sizeof(struct intr_frame));
+	// memcpy(&cur->parent_if, f, sizeof(struct intr_frame));
 	memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
 
 	/* Clone current thread to new thread.*/
-	tid_t pid = thread_create (name,PRI_DEFAULT, __do_fork, thread_current ());
+	// dump_pml4(thread_current()->pml4);
+	tid_t pid = thread_create (name, PRI_DEFAULT, __do_fork, cur);
+
 	if (pid == TID_ERROR)
 		return TID_ERROR;
 
@@ -112,7 +157,6 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 		sema_up(&child->exit_sema);
 		return TID_ERROR;
 	}
-
 	return pid;
 }
 
@@ -201,18 +245,18 @@ __do_fork (void *aux) {
 		if (file == NULL)
 			continue;
 		if (file > 2)
-			file = file_duplicate(file);
-		current->fd_table[i] = file;
+			current->fd_table[i] = file_duplicate(file);
+		else
+			current->fd_table[i] = file;
 	}
 	current->next_fd = parent->next_fd;
 	sema_up (&current->load_sema);
 	process_init ();
-
+// dump_pml4(current->pml4);
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 error:
-	succ = false;
 	sema_up(&current->load_sema);
 	exit(-1);
 }
@@ -328,18 +372,17 @@ void
 process_exit (void) {
 	struct thread *cur = thread_current ();
 	/* [TODO] 프로세스 종료 메세지 구현, 프로세스의 리소스를 정리하는 코드 추가 필요 */
-	for (int i = 2; i < FDT_COUNT_LIMIT; i++) {
+	for (int i = 0; i < FDT_COUNT_LIMIT; i++) {
 		if (cur->fd_table[i] != NULL)
 			close(i);
 	}
-
 	palloc_free_multiple(cur->fd_table, FDT_PAGES);		//multi-oom 실패 사유
 	file_close(cur->running);
 	process_cleanup();
-
 	sema_up(&cur->wait_sema);
 	sema_down(&cur->exit_sema);
 }
+
 
 /* Free the current process's resources. */
 static void
@@ -363,7 +406,10 @@ process_cleanup (void) {
 		 * directory, or our active page directory will be one
 		 * that's been freed (and cleared). */
 		curr->pml4 = NULL;
-		pml4_activate (NULL);
+		pml4_activate (NULL); 
+		// printf("pml4 %p\n\n", pml4);
+		// printf("is kernel valid %d\n\n", is_kernel_vaddr(pml4));
+		// dump_pml4(pml4);
 		pml4_destroy (pml4);
 	}
 }
