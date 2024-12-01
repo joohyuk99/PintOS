@@ -13,7 +13,7 @@ static bool anon_swap_out (struct page *page);
 static void anon_destroy (struct page *page);
 
 struct bitmap *swap_table;
-size_t swap_size;
+size_t slot_max;
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations anon_ops = {
@@ -28,8 +28,8 @@ void
 vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
 	swap_disk = disk_get(1, 1);
-	swap_size = disk_size(swap_disk);
-	swap_table = bitmap_create(swap_size);
+	slot_max = disk_size(swap_disk) / (PGSIZE / DISK_SECTOR_SIZE);
+	swap_table = bitmap_create(slot_max);
 }
 
 /* Initialize the file mapping */
@@ -50,12 +50,12 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 /* Swap in the page by read contents from the swap disk. */
 static bool
 anon_swap_in (struct page *page, void *kva) {
+
 	struct anon_page *anon_page = &page->anon;
 	size_t slot = anon_page->sector;
 	size_t sector = slot * (PGSIZE / DISK_SECTOR_SIZE);
 	
-
-	if(slot == BITMAP_ERROR || !bitmap_test(swap_table, slot))
+	if(slot == BITMAP_ERROR || !bitmap_test(swap_table, slot)) 
 		return false;
 
 	bitmap_set(swap_table, slot, false);
@@ -83,7 +83,7 @@ anon_swap_out (struct page *page) {
 	for(size_t i = 0; i < SECTOR_SIZE; i++)
 		disk_write(swap_disk, sector + i, page->va + DISK_SECTOR_SIZE * i);
 
-	anon_page->sector = sector;
+	anon_page->sector = free_idx;
 	page->frame->page = NULL;
 	page->frame = NULL;
 
@@ -91,6 +91,7 @@ anon_swap_out (struct page *page) {
 
 	return true;
 }
+
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
 static void

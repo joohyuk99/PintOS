@@ -55,6 +55,7 @@
         "cinttypes": "cpp",
         "cstdbool": "cpp",
         "random": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "main.h": "c"
     }
 }

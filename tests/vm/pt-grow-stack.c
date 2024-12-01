@@ -10,7 +10,6 @@
 void
 test_main (void)
 {
-  msg("1");
   char stack_obj[4096];
   struct arc4 arc4;
   arc4_init (&arc4, "foobar", 6);

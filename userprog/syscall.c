@@ -174,7 +174,7 @@ void halt(void) {
 	power_off();
 }
 
-void exit(int status) {
+void exit(int status) { printf("%d exec\n", thread_current()->tid);
 	struct thread *cur = thread_current();
 	cur->exit_status = status;
 
@@ -182,10 +182,11 @@ void exit(int status) {
 	thread_exit();
 }
 
-bool create(const char *file, unsigned initial_size) {
+bool create(const char *file, unsigned initial_size) { printf("%d create\n", thread_current()->tid);
 	addr_validation(file);
 	lock_acquire(&filesys_lock);
 	bool ret = filesys_create(file, initial_size);		// 파일 이름과 파일 사이즈를 인자 값으로 받아 파일을 생성하는 함수
+	// printf("create %d\n", thread_current()->tid);
 	lock_release(&filesys_lock);
 	return ret;
 }
@@ -198,7 +199,7 @@ bool remove(const char *file) {
 	return ret;
 }
 
-int fork(const char *thread_name, struct intr_frame *_if) {
+int fork(const char *thread_name, struct intr_frame *_if) { printf("%d fork\n", thread_current()->tid);
 	// printf("parent %d\n\n", thread_current()->tid);
 	addr_validation(thread_name);
 	int t = process_fork(thread_name, _if);
@@ -337,8 +338,10 @@ void *mmap(void *addr, size_t length, int writable, int fd, off_t offset) {
 
 	if(file_length(file) == 0 || (long)length <= 0)
 		return NULL;
-	
-	return do_mmap(addr, length, writable, file, offset);
+
+	void* t = do_mmap(addr, length, writable, file, offset);
+	// printf("%p\n", t);
+	return t;
 #endif
 }
 

@@ -173,7 +173,7 @@ vm_get_frame (void) {
 	
 	/* TODO: Fill this function. */
 	struct frame *frame = (struct frame*)malloc(sizeof(struct frame));
-	frame->kva = palloc_get_page(PAL_USER);  // allocate virtual memory
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);  // allocate virtual memory
 
 	if(frame->kva == NULL)
 		frame = vm_evict_frame();  // swap out
@@ -205,9 +205,17 @@ vm_stack_growth (void *addr UNUSED) {
 /* Handle the fault on write_protected page */
 static bool
 vm_handle_wp (struct page *page UNUSED) {
+
+	if(!page->accessible)
+		return false;
+
 	void *kva = page->frame->kva;
 
-	page->frame->kva = palloc_get_page(PAL_USER);
+	page->frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
+
+	if(page->frame->kva == NULL)
+		page->frame = vm_evict_frame();
+
 	memcpy(page->frame->kva, kva, PGSIZE);
 
 	if(!pml4_set_page(thread_current()->pml4, page->va, page->frame->kva, page->accessible))
@@ -228,22 +236,23 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 
 	struct supplemental_page_table *spt = &curr->spt;
 	struct page *page = spt_find_page(&curr->spt, addr);
-
+// printf("1\n");
 	if(addr == NULL || is_kernel_vaddr(addr))
 		return false;
-
+// printf("2\n");
 	if(!not_present && write)
 		return vm_handle_wp(page);
-	
+// printf("3\n");
 	if(page == NULL) {
-		void *stack_pointer = user == NULL ? f->rsp : curr->stack_pointer;
+		void *stack_pointer = user ? f->rsp : curr->stack_pointer;
+		// printf("page %p, %p, %p, %p\n\n", stack_pointer, addr, STACK_LIMIT, USER_STACK);
 		if(stack_pointer - 8 <= addr && addr >= STACK_LIMIT && addr <= USER_STACK) {
 			vm_stack_growth(curr->stack_bottom - PGSIZE);
 			return true;
 		}
 		return false;
 	}
-
+// printf("4\n");
 	return vm_do_claim_page(page);
 }
 

@@ -43,12 +43,23 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
 	struct file_page *file_page UNUSED = &page->file;
+	return lazy_load_segment(page, file_page);
 }
 
 /* Swap out the page by writeback contents to the file. */
 static bool
 file_backed_swap_out (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+	if(pml4_is_dirty(thread_current()->pml4, page->va)) {
+		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->offset);
+		pml4_set_dirty(thread_current()->pml4, page->va, false);
+	}
+
+	page->frame->page = NULL;
+	page->frame = NULL;
+	pml4_clear_page(thread_current()->pml4, page->va);
+
+	return true;
 }
 
 /* Destory the file backed page. PAGE will be freed by the caller. */
@@ -60,6 +71,14 @@ file_backed_destroy (struct page *page) {
 		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->offset);
 		pml4_set_dirty(curr->pml4, page->va, false);
 	}
+
+	if(page->frame) {
+		list_remove(&page->frame->elem);
+		page->frame->page = NULL;
+		page->frame = NULL;
+		free(page->frame);
+	}
+
 	pml4_clear_page(curr->pml4, page->va);
 }
 
@@ -67,34 +86,40 @@ file_backed_destroy (struct page *page) {
 void *
 do_mmap (void *addr, size_t length, int writable,
 		struct file *file, off_t offset) {
-	
+
 	lock_acquire(&filesys_lock);
 	
 	struct file *mfile = file_reopen(file);
     void *ori_addr = addr;
     size_t read_bytes = (length > file_length(mfile)) ? file_length(mfile) : length;
     size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+
+	ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
+    ASSERT(pg_ofs(addr) == 0);
+    ASSERT(offset % PGSIZE == 0);
+
+// printf("1\n\n");
     while (read_bytes > 0 || zero_bytes > 0) {
         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
         struct container *container = (struct container *)malloc(sizeof(struct container));
         container->file = mfile;
         container->offset = offset;
-        container->page_read_bytes = page_read_bytes;
+        container->page_read_bytes = page_read_bytes; //printf("2\n\n");
         if (!vm_alloc_page_with_initializer(VM_FILE, addr, writable, lazy_load_segment, container)) {
 			free(container);
 			lock_release(&filesys_lock);
-			return false;
-		}
+			return NULL;
+		} //printf("3\n\n");
             
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
         addr += PGSIZE;
         offset += page_read_bytes;
     }
-    
+// printf("4\n\n");
 	lock_release(&filesys_lock);
-
+// printf("5\n\n");
     return ori_addr;
 }
 

@@ -296,6 +296,7 @@ process_exec (void *f_name) {
 		palloc_free_page (file_name);
 		exit(-1);
 	}
+
 	/* 파싱하고 남은 문자열 스택에 저장 */
 	argument_stack(argv, argc, &_if.rsp);
 	_if.R.rdi = argc;			    	// argc -> RDI.
@@ -304,6 +305,7 @@ process_exec (void *f_name) {
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);		/* 작업이 끝났으므로 동적할당한 file_name이 담긴 메모리 free */
+
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
